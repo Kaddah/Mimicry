@@ -49,6 +49,7 @@ def apply_perspective_transform(img):
     M = cv2.getPerspectiveTransform(pts1, pts2)
     return cv2.warpPerspective(img, M, (195, 385))
 
+
 def main():
     read_images()
     hand_tracking = HandTracking()
@@ -177,3 +178,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
