@@ -7,6 +7,7 @@ from HandTracking import HandTracking
 from HandTracking import HandLandmarks
 from PersonDetector import PersonDetector
 from Timer import Timer
+from Filter import Filter
 
 # Global variables
 vc = cv2.VideoCapture(0)
@@ -49,6 +50,42 @@ def apply_perspective_transform(img):
     M = cv2.getPerspectiveTransform(pts1, pts2)
     return cv2.warpPerspective(img, M, (195, 385))
 
+# Hilfsfunktion um Filter z.T. transparent zu machen
+# Schwarze Linien transparent machen für den Cartoon Filter 
+def make_black_lines_transparent(img):
+    # Überprüfe ob das Bild einen alpha Kanal hat, füge einen alpha kanal hinzu
+    if img.shape[2] == 3:
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2BGRA)
+        
+    # Definiere die schwarzen Linien um sie mit einer Maske entfernen zu können
+    lower_black = np.array([0, 0, 0], dtype=np.uint8)
+    upper_black = np.array([50, 50, 50], dtype=np.uint8)
+
+    # Maske für die schwarzen Pixel
+    black_mask = cv2.inRange(img[:, :, :3], lower_black, upper_black)
+
+    # Setze Alphakanal der Maske auf 0 >> Transparent
+    img[:, :, 3][black_mask == 255] = 0
+
+    return img
+    
+
+# Filter Function for Starry Night
+def apply_starry_night_filter(img):
+        img = Filter.apply_duotone_and_cartoon(img, Filter.farbe_gelb, Filter.farbe_dunkelblau, 50, 20)
+        #img = make_black_lines_transparent(img)
+        return img
+
+# Filter Function for the Scream
+def apply_the_scream_filter(img):
+        img = Filter.apply_cartoon(img)
+        #img = make_black_lines_transparent(img)
+        return img
+
+# Filter Function for un Dimanche
+def apply_un_dimanche_filter(img):
+    img = Filter.pointilismus(img, 10)
+    return img
 
 def main():
     read_images()
@@ -60,6 +97,11 @@ def main():
     #wait_counter = 5
     #current_time = timer.current_timer()
     person_detector = PersonDetector()
+    filter = Filter()                                   # Filter object 
+
+    person_timer = Timer()
+    person_detected_duration = 0
+
 
     show_curator = True
     img_idx = 0
@@ -121,9 +163,31 @@ def main():
             curator_copy[mirror_coords[1]: mirror_coords[1] + mirror_coords[3], mirror_coords[0]: mirror_coords[0] + mirror_coords[2]] = dst
             display_image = curator_copy
 
+        ###############################################################################################
+        # if the curator scene is not shown, means we see the segmented human in front of the art
+        # depending on the art a certain filter is applied to the segmented human 
+        # 
+        # Kommentar: Noch sind schwarze Linien nicht transparent 
         else:
-            imgBg = images[img_idx]
+            
+            # img_indx is the index number for each art ( 0 = starry night, 1 = the scream, 2 = un dimanche)
+            # imgBG is the img of the art
+            imgBg = images[img_idx]                         
+            
+            # Apply filters
+            if img_idx == 0:
+                camera_img = apply_starry_night_filter(camera_img)
+            elif img_idx == 1:
+                camera_img = apply_the_scream_filter(camera_img)
+            elif img_idx == 2:
+                camera_img = apply_un_dimanche_filter(camera_img)
+
+
+           
+
+            # Segmenting the human from the bg ( = art)
             display_image = segmentor.removeBG(camera_img, imgBg, cutThreshold=0.45)
+        ###############################################################################################
 
         # Fullscreen
         cv2.namedWindow(windowName, cv2.WND_PROP_FULLSCREEN)
@@ -131,25 +195,34 @@ def main():
         cv2.imshow(windowName, display_image)
 
         # Switching to Background Changer by being in frame for 5 seconds
-       # if show_curator:
-            #if not change_detected and person_detector.detect_person(camera_img_resized):
-                #timer.reset()
-                #if t >= current_time + wait_counter:
-                    #show_curator = not show_curator
-                    #change_detected = True
-                    #wait_counter += 10
-            #else:
-                #change_detected = False
+        if show_curator:
+            if person_detector.detect_person(camera_img):
+                if person_detected_duration == 0:
+                    person_timer.start()
+                person_detected_duration = person_timer.elapsed_time()
+                if person_detected_duration >= 5:
+                    show_curator = False
+                    person_detected_duration = 0
+                    person_timer.reset()
+            else:
+                person_detected_duration = 0
+                person_timer.reset()
+        else:
+            if person_detector.detect_person(camera_img):
+                person_detected_duration = 0
+                person_timer.reset()
             
 
         # Closing with gesture
         exit_gesture = False
         if not show_curator and hand_tracking.results.multi_hand_landmarks:
             exit_gesture = any(hand_tracking.close_window(landmark) for landmark in hand_tracking.results.multi_hand_landmarks)
-        #if exit_gesture and not exit_gesture_detected:
+        if exit_gesture and not exit_gesture_detected:
             # Exit the Background Changer and show curator
-            #show_curator = True
-            #exit_gesture_detected = True
+            show_curator = True
+            exit_gesture_detected = True
+            person_detected_duration = 0
+            person_timer.reset()
 
         if not exit_gesture:
             exit_gesture_detected = False
@@ -170,12 +243,10 @@ def main():
         if cv2.getWindowProperty(windowName, cv2.WND_PROP_VISIBLE) < 1:
             break
     
-    #timer.stop()
-    #timer.reset()
+
 
     vc.release()
     cv2.destroyAllWindows()
 
 if __name__ == "__main__":
     main()
-
