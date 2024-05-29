@@ -9,7 +9,10 @@ from PersonDetector import PersonDetector
 from Timer import Timer
 from Filter import Filter
 
-# Global variables
+#############################################################################################################
+# Global variables                                                                                          #
+#############################################################################################################
+
 vc = cv2.VideoCapture(0)
 segmentor = SelfiSegmentation()
 width, height = 1280, 720
@@ -23,6 +26,10 @@ curator_img = cv2.resize(curator_img, (width, height))  # First picture in same 
 vc.set(3, width)  # 3 stands for width
 vc.set(4, height)  # 4 stands for height
 
+
+#############################################################################################################
+# FUNCTIONS                                                                                                 #
+#############################################################################################################
 # Center crop the image
 def center_crop(img, dim):
     width, height = img.shape[1], img.shape[0]
@@ -50,26 +57,6 @@ def apply_perspective_transform(img):
     M = cv2.getPerspectiveTransform(pts1, pts2)
     return cv2.warpPerspective(img, M, (195, 385))
 
-# Hilfsfunktion um Filter z.T. transparent zu machen
-# Schwarze Linien transparent machen für den Cartoon Filter 
-def make_black_lines_transparent(img):
-    # Überprüfe ob das Bild einen alpha Kanal hat, füge einen alpha kanal hinzu
-    if img.shape[2] == 3:
-        img = cv2.cvtColor(img, cv2.COLOR_BGR2BGRA)
-        
-    # Definiere die schwarzen Linien um sie mit einer Maske entfernen zu können
-    lower_black = np.array([0, 0, 0], dtype=np.uint8)
-    upper_black = np.array([50, 50, 50], dtype=np.uint8)
-
-    # Maske für die schwarzen Pixel
-    black_mask = cv2.inRange(img[:, :, :3], lower_black, upper_black)
-
-    # Setze Alphakanal der Maske auf 0 >> Transparent
-    img[:, :, 3][black_mask == 255] = 0
-
-    return img
-    
-
 # Filter Function for Starry Night
 def apply_starry_night_filter(img):
         img = Filter.apply_duotone_and_cartoon(img, Filter.farbe_gelb, Filter.farbe_dunkelblau, 50, 20)
@@ -84,36 +71,43 @@ def apply_the_scream_filter(img):
 
 # Filter Function for un Dimanche
 def apply_un_dimanche_filter(img):
-    img = Filter.pointilismus(img, 10)
+    img = Filter.pointilismus(img, 3)
     return img
 
+#############################################################################################################
+# MAIN                                                                                                      #
+#############################################################################################################
+
 def main():
+    
+    # 0. read background images (art) from folder
     read_images()
-    hand_tracking = HandTracking()
-    gesture_detected = False
-    exit_gesture_detected = False
-    change_detected = False
-    #timer = Timer()
-    #wait_counter = 5
-    #current_time = timer.current_timer()
-    person_detector = PersonDetector()
+    
+    # 1. Set variables and objects
+    hand_tracking = HandTracking()                      # Handtracking object
+    gesture_detected = False                            # flag for gesture
+    exit_gesture_detected = False                       # flag for endgesture 
+    change_detected = False                             # ?
+    person_detector = PersonDetector()                  # Person detecting object
     filter = Filter()                                   # Filter object 
+    person_timer = Timer()                              # Timer object
+    person_detected_duration = 0                        # ?
+    show_curator = True                                 # Flag for curator scene
+    img_idx = 0                                         # Index of the background img (art)
 
-    person_timer = Timer()
-    person_detected_duration = 0
 
 
-    show_curator = True
-    img_idx = 0
-
+    # 2. MAIN Loop 
     while True:
-        #t = timer.start()
-
+        
+        ############################################################################################
+        # Get the current frame from the webcam, else error                                            
         success, camera_img = vc.read()
         if not success:
             print("Failed to read camera")
             break
-
+        ############################################################################################
+        # Hand detecting and gestures
         # Detect hand landmarks without drawing them
         camera_img = hand_tracking.find_hands(camera_img, draw=False)
         current_gesture = False
@@ -130,7 +124,8 @@ def main():
 
         if not current_gesture:
             gesture_detected = False
-
+        ############################################################################################
+        # Mirror scene 
         # Resize and transform image
         camera_img_resized = cv2.resize(camera_img, (mirror_coords[2], mirror_coords[3]))
         camera_img_resized = apply_perspective_transform(camera_img_resized)
@@ -143,11 +138,34 @@ def main():
         camera_img_resized = segmentor.removeBG(camera_img_resized, sub_image, cutThreshold=0.8)
         black_pixels_mask = np.all(camera_img_resized == [0, 0, 0], axis=-1)
         camera_img_resized[black_pixels_mask] = sub_image[black_pixels_mask]
-        
 
         if show_curator:
-            alpha_channel = np.ones(camera_img_resized.shape[:2], dtype=np.uint8) * 255
-            camera_img_resized = cv2.merge([camera_img_resized[:, :, 0], camera_img_resized[:, :, 1], camera_img_resized[:, :, 2], alpha_channel])
+            # Convert the green area to transparent
+            alpha_mask = np.where((camera_img_resized[:,:,0] == 0) & (camera_img_resized[:,:,1] == 0) & (camera_img_resized[:,:,2] == 0), 0, 255).astype(np.uint8)
+
+            # Merge the alpha mask with the person image
+            camera_img_resized = cv2.merge((camera_img_resized[:,:,0], camera_img_resized[:,:,1], camera_img_resized[:,:,2], alpha_mask))
+
+            # Erzeuge die Distanztransformation
+            dist_transform = cv2.distanceTransform(alpha_mask, cv2.DIST_L2, 5)
+            gradient = cv2.normalize(dist_transform, None, 0, 1.0, cv2.NORM_MINMAX)
+
+            # Invertiere den Farbverlauf (umkehren)
+            gradient = 1 - gradient
+
+            # Erstelle den Farbverlauf (schwarz nach transparent)
+            gradient = (gradient * 25).astype(np.uint8)
+            gradient = cv2.merge((gradient, gradient, gradient, gradient))
+
+            # Wende den Farbverlauf auf die Person an
+            alpha_gradient = gradient[:, :, 3]
+            alpha_gradient = cv2.cvtColor(alpha_gradient, cv2.COLOR_GRAY2BGRA)
+            alpha_gradient[:, :, 3] = gradient[:, :, 3]
+
+            camera_img_resized = cv2.addWeighted(camera_img_resized, 1, alpha_gradient, -1, 0)
+            
+            #alpha_channel = np.ones(camera_img_resized.shape[:2], dtype=np.uint8) * 255
+            #camera_img_resized = cv2.merge([camera_img_resized[:, :, 0], camera_img_resized[:, :, 1], camera_img_resized[:, :, 2], alpha_channel])
 
             curator_copy = curator_img.copy()
             roi = curator_copy[mirror_coords[1]: mirror_coords[1] + mirror_coords[3], mirror_coords[0]: mirror_coords[0] + mirror_coords[2]]
@@ -182,9 +200,6 @@ def main():
             elif img_idx == 2:
                 camera_img = apply_un_dimanche_filter(camera_img)
 
-
-           
-
             # Segmenting the human from the bg ( = art)
             display_image = segmentor.removeBG(camera_img, imgBg, cutThreshold=0.45)
         ###############################################################################################
@@ -193,7 +208,8 @@ def main():
         cv2.namedWindow(windowName, cv2.WND_PROP_FULLSCREEN)
         cv2.setWindowProperty(windowName, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
         cv2.imshow(windowName, display_image)
-
+        
+        ############################################################################################
         # Switching to Background Changer by being in frame for 5 seconds
         if show_curator:
             if person_detector.detect_person(camera_img):
@@ -211,8 +227,7 @@ def main():
             if person_detector.detect_person(camera_img):
                 person_detected_duration = 0
                 person_timer.reset()
-            
-
+        ############################################################################################  
         # Closing with gesture
         exit_gesture = False
         if not show_curator and hand_tracking.results.multi_hand_landmarks:
@@ -227,6 +242,8 @@ def main():
         if not exit_gesture:
             exit_gesture_detected = False
 
+        ############################################################################################
+        # Keyboard 
         key = cv2.waitKey(1)
         # Close window with esc key
         if key == 27:
@@ -244,9 +261,11 @@ def main():
             break
     
 
-
+    # Aufräumen
     vc.release()
     cv2.destroyAllWindows()
 
+
+# MAIN AUFRUF
 if __name__ == "__main__":
     main()

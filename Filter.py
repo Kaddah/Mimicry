@@ -1,5 +1,5 @@
 import math
-import random
+import random 
 import cv2
 import cvzone
 from cvzone.SelfiSegmentationModule import SelfiSegmentation
@@ -186,6 +186,19 @@ class Filter:
         return canvas
 
 
+    def apply_pointilismus(frame, radius):
+            image = frame.copy()
+            for _ in range(1000):  # Adjust the number of iterations as needed
+                x = random.randint(0, image.shape[1] - 1)
+                y = random.randint(0, image.shape[0] - 1)
+                c = image[y, x]
+                zufall = random.randint(2, 15) / 10.0
+                radius_scaled = int(radius * zufall)
+                cv2.circle(image, (x, y), radius_scaled, (int(c[2]), int(c[1]), int(c[0])), -1)
+            return image
+
+
+
     ######## KOMBINIERTE FILTER ######################################################################
 
     # Pencilsketch + Duotone
@@ -214,7 +227,7 @@ class Filter:
     
     @staticmethod
     def apply_un_dimanche_filter(img):
-        img = Filter.pointilismus(img, 10)
+        img = Filter.apply_pointilismus(img, 10)
         return img
 
     @staticmethod
