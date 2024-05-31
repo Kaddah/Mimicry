@@ -176,8 +176,12 @@ def main():
             roi_fg_resized = cv2.resize(camera_img_resized, (roi.shape[1], roi.shape[0]))
             roi_fg = cv2.bitwise_and(roi_fg_resized, roi_fg_resized, mask=roi_fg_resized[:, :, 3])
 
+            
+            #mit dem neuen curator bild hatten die kanäle nich mehr gepasst for some reason
+            roi_fg_rgb = cv2.cvtColor(roi_fg, cv2.COLOR_RGBA2RGB)
+
             # Add the masked foreground and background images
-            dst = cv2.add(roi_bg, roi_fg)
+            dst = cv2.add(roi_bg, roi_fg_rgb)
             curator_copy[mirror_coords[1]: mirror_coords[1] + mirror_coords[3], mirror_coords[0]: mirror_coords[0] + mirror_coords[2]] = dst
             display_image = curator_copy
 
