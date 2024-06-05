@@ -133,6 +133,11 @@ def main():
         x_end, y_end = x_start + mirror_coords[2], y_start + mirror_coords[3]      # Bottom-right corner (x, y)
         sub_image = curator_img[y_start:y_end, x_start:x_end]
         sub_image = sub_image[:, :, :3]
+                    
+            
+        # Convert the green area to transparent
+        alpha_mask = np.where((camera_img_resized[:,:,0] == 0) & (camera_img_resized[:,:,1] == 0) & (camera_img_resized[:,:,2] == 0), 0, 255).astype(np.uint8)
+
         
         # render out black pixels
         camera_img_resized = segmentor.removeBG(camera_img_resized, sub_image, cutThreshold=0.8)
@@ -140,9 +145,7 @@ def main():
         camera_img_resized[black_pixels_mask] = sub_image[black_pixels_mask]
 
         if show_curator:
-            # Convert the green area to transparent
-            alpha_mask = np.where((camera_img_resized[:,:,0] == 0) & (camera_img_resized[:,:,1] == 0) & (camera_img_resized[:,:,2] == 0), 0, 255).astype(np.uint8)
-
+            
             # Merge the alpha mask with the person image
             camera_img_resized = cv2.merge((camera_img_resized[:,:,0], camera_img_resized[:,:,1], camera_img_resized[:,:,2], alpha_mask))
 
