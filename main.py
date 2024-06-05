@@ -77,8 +77,22 @@ def apply_un_dimanche_filter(img):
 def morph_images(img1, img2, steps=20):
     for i in range(steps + 1):
         alpha = i / steps
+        # Linear interpolation between the two images
         morphed_img = cv2.addWeighted(img1, 1 - alpha, img2, alpha, 0)
-        cv2.imshow(windowName, morphed_img)
+        
+        # Apply dream sequence effect
+        # Apply Gaussian blur to the image
+        blurred_img = cv2.GaussianBlur(morphed_img, (15, 15), sigmaX=5, sigmaY=5)
+        
+        # Add a wavy distortion effect
+        rows, cols = blurred_img.shape[:2]
+        scale = 10  # Adjust scale for intensity of distortion
+        wave_shift = scale * np.sin(2 * np.pi * i / steps)
+        M = np.float32([[1, 0, wave_shift], [0, 1, 0]])
+        distorted_img = cv2.warpAffine(blurred_img, M, (cols, rows))
+        
+        # Show the morphed image with dream sequence effect
+        cv2.imshow(windowName, distorted_img)
         cv2.waitKey(50)  # Adjust delay as needed
 
 #############################################################################################################
