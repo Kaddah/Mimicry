@@ -26,7 +26,6 @@ curator_img = cv2.resize(curator_img, (width, height))  # First picture in same 
 vc.set(3, width)  # 3 stands for width
 vc.set(4, height)  # 4 stands for height
 
-
 #############################################################################################################
 # FUNCTIONS                                                                                                 #
 #############################################################################################################
@@ -74,40 +73,54 @@ def apply_un_dimanche_filter(img):
     img = Filter.pointilismus(img, 3)
     return img
 
+# Function to create morph effect between two images
+def morph_images(img1, img2, steps=20):
+    for i in range(steps + 1):
+        alpha = i / steps
+        morphed_img = cv2.addWeighted(img1, 1 - alpha, img2, alpha, 0)
+        cv2.imshow(windowName, morphed_img)
+        cv2.waitKey(50)  # Adjust delay as needed
+
 #############################################################################################################
 # MAIN                                                                                                      #
 #############################################################################################################
 
+# Funktion zur Vorverarbeitung von Bildern
+def preprocess_image(img, target_width, target_height):
+    # Sicherstellen, dass das Bild die Zielabmessungen hat
+    img_resized = cv2.resize(img, (target_width, target_height))
+    # Sicherstellen, dass das Bild immer drei Kanäle hat (z.B. von Graustufen auf RGB umwandeln)
+    if img_resized.shape[2] != 3:
+        img_resized = cv2.cvtColor(img_resized, cv2.COLOR_GRAY2RGB)
+    return img_resized
+
 def main():
-    
-    # 0. read background images (art) from folder
     read_images()
-    
-    # 1. Set variables and objects
-    hand_tracking = HandTracking()                      # Handtracking object
-    gesture_detected = False                            # flag for gesture
-    exit_gesture_detected = False                       # flag for endgesture 
-    change_detected = False                             # ?
-    person_detector = PersonDetector()                  # Person detecting object
+    if not images:
+        print("No images available. Exiting program.")
+        return
+    hand_tracking = HandTracking()
+    gesture_detected = False
+    exit_gesture_detected = False
+    change_detected = False
+    person_detector = PersonDetector()
     filter = Filter()                                   # Filter object 
-    person_timer = Timer()                              # Timer object
-    person_detected_duration = 0                        # ?
-    show_curator = True                                 # Flag for curator scene
-    img_idx = 0                                         # Index of the background img (art)
 
+    person_timer = Timer()
+    person_detected_duration = 0
 
+    show_curator = True
+    img_idx = 0
 
-    # 2. MAIN Loop 
     while True:
-        
-        ############################################################################################
-        # Get the current frame from the webcam, else error                                            
         success, camera_img = vc.read()
         if not success:
             print("Failed to read camera")
             break
-        ############################################################################################
-        # Hand detecting and gestures
+
+        # Preprocess camera image
+        camera_img = preprocess_image(camera_img, width, height)
+
         # Detect hand landmarks without drawing them
         camera_img = hand_tracking.find_hands(camera_img, draw=False)
         current_gesture = False
@@ -124,8 +137,7 @@ def main():
 
         if not current_gesture:
             gesture_detected = False
-        ############################################################################################
-        # Mirror scene 
+
         # Resize and transform image
         camera_img_resized = cv2.resize(camera_img, (mirror_coords[2], mirror_coords[3]))
         camera_img_resized = apply_perspective_transform(camera_img_resized)
@@ -164,9 +176,6 @@ def main():
 
             camera_img_resized = cv2.addWeighted(camera_img_resized, 1, alpha_gradient, -1, 0)
             
-            #alpha_channel = np.ones(camera_img_resized.shape[:2], dtype=np.uint8) * 255
-            #camera_img_resized = cv2.merge([camera_img_resized[:, :, 0], camera_img_resized[:, :, 1], camera_img_resized[:, :, 2], alpha_channel])
-
             curator_copy = curator_img.copy()
             roi = curator_copy[mirror_coords[1]: mirror_coords[1] + mirror_coords[3], mirror_coords[0]: mirror_coords[0] + mirror_coords[2]]
 
@@ -176,8 +185,6 @@ def main():
             roi_fg_resized = cv2.resize(camera_img_resized, (roi.shape[1], roi.shape[0]))
             roi_fg = cv2.bitwise_and(roi_fg_resized, roi_fg_resized, mask=roi_fg_resized[:, :, 3])
 
-            
-            #mit dem neuen curator bild hatten die kanäle nich mehr gepasst for some reason
             roi_fg_rgb = cv2.cvtColor(roi_fg, cv2.COLOR_RGBA2RGB)
 
             # Add the masked foreground and background images
@@ -185,17 +192,11 @@ def main():
             curator_copy[mirror_coords[1]: mirror_coords[1] + mirror_coords[3], mirror_coords[0]: mirror_coords[0] + mirror_coords[2]] = dst
             display_image = curator_copy
 
-        ###############################################################################################
-        # if the curator scene is not shown, means we see the segmented human in front of the art
-        # depending on the art a certain filter is applied to the segmented human 
-        # 
-        # Kommentar: Noch sind schwarze Linien nicht transparent 
         else:
-            
             # img_indx is the index number for each art ( 0 = starry night, 1 = the scream, 2 = un dimanche)
             # imgBG is the img of the art
-            imgBg = images[img_idx]                         
-            
+            imgBg = images[img_idx]
+
             # Apply filters
             if img_idx == 0:
                 camera_img = apply_starry_night_filter(camera_img)
@@ -206,14 +207,12 @@ def main():
 
             # Segmenting the human from the bg ( = art)
             display_image = segmentor.removeBG(camera_img, imgBg, cutThreshold=0.45)
-        ###############################################################################################
 
         # Fullscreen
         cv2.namedWindow(windowName, cv2.WND_PROP_FULLSCREEN)
         cv2.setWindowProperty(windowName, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
         cv2.imshow(windowName, display_image)
-        
-        ############################################################################################
+
         # Switching to Background Changer by being in frame for 5 seconds
         if show_curator:
             if person_detector.detect_person(camera_img):
@@ -221,6 +220,8 @@ def main():
                     person_timer.start()
                 person_detected_duration = person_timer.elapsed_time()
                 if person_detected_duration >= 5:
+                    # Start morph effect
+                    morph_images(curator_img, images[0])
                     show_curator = False
                     person_detected_duration = 0
                     person_timer.reset()
@@ -231,13 +232,14 @@ def main():
             if person_detector.detect_person(camera_img):
                 person_detected_duration = 0
                 person_timer.reset()
-        ############################################################################################  
+
         # Closing with gesture
         exit_gesture = False
         if not show_curator and hand_tracking.results.multi_hand_landmarks:
             exit_gesture = any(hand_tracking.close_window(landmark) for landmark in hand_tracking.results.multi_hand_landmarks)
         if exit_gesture and not exit_gesture_detected:
-            # Exit the Background Changer and show curator
+            # Start reverse morph effect
+            morph_images(images[0], curator_img)
             show_curator = True
             exit_gesture_detected = True
             person_detected_duration = 0
@@ -246,8 +248,7 @@ def main():
         if not exit_gesture:
             exit_gesture_detected = False
 
-        ############################################################################################
-        # Keyboard 
+        # Keyboard
         key = cv2.waitKey(1)
         # Close window with esc key
         if key == 27:
@@ -263,12 +264,10 @@ def main():
         # Close window with clicking on 'x'
         if cv2.getWindowProperty(windowName, cv2.WND_PROP_VISIBLE) < 1:
             break
-    
 
     # Aufräumen
     vc.release()
     cv2.destroyAllWindows()
-
 
 # MAIN AUFRUF
 if __name__ == "__main__":
