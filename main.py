@@ -2,7 +2,7 @@ import cv2
 import os
 import numpy as np
 import time
-from cvzone.SelfiSegmentationModule import SelfiSegmentation
+from SelfiSegmentationModule import SelfiSegmentation
 from HandTracking import HandTracking
 from HandTracking import HandLandmarks
 from PersonDetector import PersonDetector
@@ -57,6 +57,58 @@ def apply_perspective_transform(img):
     M = cv2.getPerspectiveTransform(pts1, pts2)
     return cv2.warpPerspective(img, M, (195, 385))
 
+
+# Function to create morph effect between two images
+def morph_images(img1, img2, steps=20):
+    # Resize images to have the same dimensions
+    img1_resized = cv2.resize(img1, (img2.shape[1], img2.shape[0]))
+
+    # Convert img1_resized to RGBA if it is not already
+    if img1_resized.shape[2] == 3:
+        img1_resized = cv2.cvtColor(img1_resized, cv2.COLOR_BGR2BGRA)
+
+    # Convert img2 to RGBA if it is not already
+    if img2.shape[2] == 3:
+        img2 = cv2.cvtColor(img2, cv2.COLOR_BGR2BGRA)
+
+    for i in range(steps + 1):
+        alpha = i / steps
+        # Linear interpolation between the two images
+        morphed_img = cv2.addWeighted(img1_resized, 1 - alpha, img2, alpha, 0)
+        
+        # Apply dream sequence effect
+        # Apply Gaussian blur to the image
+        blurred_img = cv2.GaussianBlur(morphed_img, (15, 15), sigmaX=5, sigmaY=5)
+        
+        # Add a wavy distortion effect
+        rows, cols = blurred_img.shape[:2]
+        scale = 10  # Adjust scale for intensity of distortion
+        wave_shift = scale * np.sin(2 * np.pi * i / steps)
+        M = np.float32([[1, 0, wave_shift], [0, 1, 0]])
+        distorted_img = cv2.warpAffine(blurred_img, M, (cols, rows))
+        
+        # Show the morphed image with dream sequence effect
+        cv2.imshow(windowName, distorted_img)
+        cv2.waitKey(50)  # Adjust delay as needed
+
+
+
+
+
+# Helper Function to make black lines in the Filter transparent
+def make_black_lines_transparent(img):
+    # Check if the image has an alpha channel, if not add one
+    if img.shape[2] == 3:
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2BGRA)
+
+    # Create a mask where the black pixels (0, 0, 0) will be transparent
+    black_pixels = np.all(img[:, :, :3] == [0, 0, 0], axis=-1)
+    
+    # Set the alpha channel to 0 (transparent) for black pixels
+    img[black_pixels, 3] = 0
+
+    return img
+
 # Filter Function for Starry Night
 def apply_starry_night_filter(img):
         img = Filter.apply_duotone_and_cartoon(img, Filter.farbe_gelb, Filter.farbe_dunkelblau, 50, 20)
@@ -71,8 +123,10 @@ def apply_the_scream_filter(img):
 
 # Filter Function for un Dimanche
 def apply_un_dimanche_filter(img):
-    img = Filter.pointilismus(img, 3)
+    img = Filter.apply_pencilsketch_and_duotone(img, Filter.farbe_gelb, Filter.farbe_dunkelgruen)
     return img
+
+
 
 #############################################################################################################
 # MAIN                                                                                                      #
@@ -176,12 +230,8 @@ def main():
             roi_fg_resized = cv2.resize(camera_img_resized, (roi.shape[1], roi.shape[0]))
             roi_fg = cv2.bitwise_and(roi_fg_resized, roi_fg_resized, mask=roi_fg_resized[:, :, 3])
 
-            
-            #mit dem neuen curator bild hatten die kanäle nich mehr gepasst for some reason
-            roi_fg_rgb = cv2.cvtColor(roi_fg, cv2.COLOR_RGBA2RGB)
-
             # Add the masked foreground and background images
-            dst = cv2.add(roi_bg, roi_fg_rgb)
+            dst = cv2.add(roi_bg, roi_fg_resized)
             curator_copy[mirror_coords[1]: mirror_coords[1] + mirror_coords[3], mirror_coords[0]: mirror_coords[0] + mirror_coords[2]] = dst
             display_image = curator_copy
 
@@ -194,18 +244,42 @@ def main():
             
             # img_indx is the index number for each art ( 0 = starry night, 1 = the scream, 2 = un dimanche)
             # imgBG is the img of the art
-            imgBg = images[img_idx]                         
+            imgBg = images[img_idx]       
+            
+            '''
+            # Check if the background and cameraimg have an alpha channel, if not add one
+            if imgBg.shape[2] == 3:
+                imgBg = cv2.cvtColor(imgBg, cv2.COLOR_BGR2BGRA)          
+                
+            if camera_img.shape[2] == 3:
+                camera_img = cv2.cvtColor(camera_img, cv2.COLOR_BGR2BGRA)            
+            '''
+            
+            # Segmenting the human from the bg ( = art)
+            segmented_img, condition = segmentor.get_segments(camera_img, imgBg, cutThreshold=0.45)
+
+            '''
+            # Make sure the segmented img has alpha channel
+            if segmented_img.shape[2] == 3:
+                segmented_img = cv2.cvtColor(segmented_img, cv2.COLOR_BGR2BGRA)
+            '''
             
             # Apply filters
             if img_idx == 0:
-                camera_img = apply_starry_night_filter(camera_img)
+                segmented_img = apply_starry_night_filter(segmented_img)
             elif img_idx == 1:
-                camera_img = apply_the_scream_filter(camera_img)
+                segmented_img = apply_the_scream_filter(segmented_img)
             elif img_idx == 2:
-                camera_img = apply_un_dimanche_filter(camera_img)
+                segmented_img = apply_un_dimanche_filter(segmented_img)
 
-            # Segmenting the human from the bg ( = art)
-            display_image = segmentor.removeBG(camera_img, imgBg, cutThreshold=0.45)
+            # Combine the segmented img ( = human plus filter) with the background img ( = art) 
+            display_image = segmentor.combine(condition, segmented_img,  imgBg, cutThreshold=0.45)
+            
+            '''
+            # Make sure the displayed img has alpha channel 
+            if display_image.shape[2] == 3:
+                display_image = cv2.cvtColor(display_image, cv2.COLOR_BGR2BGRA)
+            '''
         ###############################################################################################
 
         # Fullscreen
@@ -221,6 +295,8 @@ def main():
                     person_timer.start()
                 person_detected_duration = person_timer.elapsed_time()
                 if person_detected_duration >= 5:
+                    # Start morph effect
+                    morph_images(curator_img, images[0])
                     show_curator = False
                     person_detected_duration = 0
                     person_timer.reset()
@@ -263,6 +339,7 @@ def main():
         # Close window with clicking on 'x'
         if cv2.getWindowProperty(windowName, cv2.WND_PROP_VISIBLE) < 1:
             break
+    
     
 
     # Aufräumen

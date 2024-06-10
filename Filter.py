@@ -35,6 +35,7 @@ class Filter:
     
     ######## HILFSFUNKTIONEN #########################################################################
     
+
     # Hilfsfunktion für Pointilismus
     def compute_color_probabilities(pixels, palette):
         distances = scipy.spatial.distance.cdist(pixels, palette)
@@ -60,6 +61,7 @@ class Filter:
                 grid.append((y % h, x % w))
         random.shuffle(grid)
         return grid
+        
     # Hilfsfunktion für Pointilismus
     def get_color_palette(img, n=20):
         clt = KMeans(n_clusters=n)
@@ -69,9 +71,14 @@ class Filter:
     def complement(colors):
         return 255 - colors
 
-    # Hilfsfunktion um Filter z.T. transparent zu machen
-    # Schwarze Linien transparent machen für den Cartoon Filter 
-    def make_black_lines_transparent(img):
+    
+    
+    # Funktion für Farben zählen für Pointilismus
+    #def get_colors(frame):
+        
+        
+        
+    # def make_black_lines_transparent(img):
         # Überprüfe ob das Bild einen alpha Kanal hat, füge einen alpha kanal hinzu
         if img.shape[2] == 3:
             img = cv2.cvtColor(img, cv2.COLOR_BGR2BGRA)
@@ -168,7 +175,12 @@ class Filter:
     # Pointilismus Filter
     def pointilismus(image, primary_colors):
         radius_width = int(math.ceil(max(image.shape) / 1000))
-        palette = Filter.get_color_palette(image, primary_colors)
+        palette = np.array([ [160,43,29] ,
+                           [131,171,206],
+                           [164,158,62],
+                           [110,127,142]
+                           ])
+        # Filter.get_color_palette(image, primary_colors)
         complements = Filter.complement(palette)
         palette = np.vstack((palette, complements))
         canvas = np.zeros_like(image)  # Erstelle eine leere Leinwand mit den gleichen Abmessungen wie das Bild
@@ -185,19 +197,35 @@ class Filter:
             cv2.circle(canvas, (x, y), radius_width, color_bgr, -1, cv2.LINE_AA)
         return canvas
 
-
-    def apply_pointilismus(frame, radius):
-            image = frame.copy()
-            for _ in range(1000):  # Adjust the number of iterations as needed
-                x = random.randint(0, image.shape[1] - 1)
-                y = random.randint(0, image.shape[0] - 1)
-                c = image[y, x]
-                zufall = random.randint(2, 15) / 10.0
-                radius_scaled = int(radius * zufall)
-                cv2.circle(image, (x, y), radius_scaled, (int(c[2]), int(c[1]), int(c[0])), -1)
-            return image
-
-
+    '''
+    def pointilismus(frame, num_points=500, max_radius=10):
+        # Create an empty canvas
+        pointillism_frame = np.zeros_like(frame)
+        
+        # Get dimensions of the frame
+        h, w, _ = frame.shape
+        
+        # Create a grid of points
+        points = np.mgrid[0:h:max_radius, 0:w:max_radius].reshape(2, -1).T
+        
+        # Shuffle the grid points
+        np.random.shuffle(points)
+        
+        # Limit the number of points
+        points = points[:num_points]
+        
+        for y, x in points:
+            # Randomly pick a radius
+            radius = random.randint(1, max_radius)
+            
+            # Get the color of the point from the original frame
+            color = frame[y, x]
+            
+            # Draw a filled circle at the chosen point with the chosen color
+            cv2.circle(pointillism_frame, (x, y), radius, tuple(int(c) for c in color), -1)
+        
+        return pointillism_frame
+    '''
 
     ######## KOMBINIERTE FILTER ######################################################################
 
@@ -220,26 +248,6 @@ class Filter:
         stylized_frame = Filter.apply_cartoon(duotone_frame)
         
         return stylized_frame
-
-    ######## FILTER FÜR JEWEILIGES KUNSTWERK #########################################################
-    # zum Aufruf in der Main Klasse gedacht
-    # Funktioniert aus irgendeinem Grund aber nicht
-    
-    @staticmethod
-    def apply_un_dimanche_filter(img):
-        img = Filter.apply_pointilismus(img, 10)
-        return img
-
-    @staticmethod
-    def apply_starry_night_filter(img):
-        img = Filter.apply_duotone_and_cartoon(img, Filter.farbe_gelb, Filter.farbe_dunkelblau, 50, 20)
-        return img
-
-    @staticmethod
-    def apply_the_scream_filter(img):
-        img = Filter.apply_cartoon(img)
-        return img
-
 
 
     #####################################################################################################################
