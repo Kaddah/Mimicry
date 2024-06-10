@@ -127,10 +127,21 @@ def apply_un_dimanche_filter(img):
 
 # Function to create morph effect between two images
 def morph_images(img1, img2, steps=20):
+    # Resize images to have the same dimensions
+    img1_resized = cv2.resize(img1, (img2.shape[1], img2.shape[0]))
+
+    # Convert img1_resized to RGBA if it is not already
+    if img1_resized.shape[2] == 3:
+        img1_resized = cv2.cvtColor(img1_resized, cv2.COLOR_BGR2BGRA)
+
+    # Convert img2 to RGBA if it is not already
+    if img2.shape[2] == 3:
+        img2 = cv2.cvtColor(img2, cv2.COLOR_BGR2BGRA)
+
     for i in range(steps + 1):
         alpha = i / steps
         # Linear interpolation between the two images
-        morphed_img = cv2.addWeighted(img1, 1 - alpha, img2, alpha, 0)
+        morphed_img = cv2.addWeighted(img1_resized, 1 - alpha, img2, alpha, 0)
         
         # Apply dream sequence effect
         # Apply Gaussian blur to the image
@@ -146,6 +157,7 @@ def morph_images(img1, img2, steps=20):
         # Show the morphed image with dream sequence effect
         cv2.imshow(windowName, distorted_img)
         cv2.waitKey(50)  # Adjust delay as needed
+
 
 #############################################################################################################
 # MAIN                                                                                                      #
@@ -261,11 +273,35 @@ def main():
             curator_copy[mirror_coords[1]: mirror_coords[1] + mirror_coords[3], mirror_coords[0]: mirror_coords[0] + mirror_coords[2]] = dst
             display_image = curator_copy
 
+        ###############################################################################################
+        # if the curator scene is not shown, means we see the segmented human in front of the art
+        # depending on the art a certain filter is applied to the segmented human 
+        # 
+        # Kommentar: Noch sind schwarze Linien nicht transparent 
         else:
+            
             # img_indx is the index number for each art ( 0 = starry night, 1 = the scream, 2 = un dimanche)
             # imgBG is the img of the art
-            imgBg = images[img_idx]
+            imgBg = images[img_idx]       
+            
+            '''
+            # Check if the background and cameraimg have an alpha channel, if not add one
+            if imgBg.shape[2] == 3:
+                imgBg = cv2.cvtColor(imgBg, cv2.COLOR_BGR2BGRA)          
+                
+            if camera_img.shape[2] == 3:
+                camera_img = cv2.cvtColor(camera_img, cv2.COLOR_BGR2BGRA)            
+            '''
+            
+            # Segmenting the human from the bg ( = art)
+            segmented_img, condition = segmentor.get_segments(camera_img, imgBg, cutThreshold=0.45)
 
+            '''
+            # Make sure the segmented img has alpha channel
+            if segmented_img.shape[2] == 3:
+                segmented_img = cv2.cvtColor(segmented_img, cv2.COLOR_BGR2BGRA)
+            '''
+            
             # Apply filters
             if img_idx == 0:
                 segmented_img = apply_starry_night_filter(segmented_img)
@@ -274,9 +310,15 @@ def main():
             elif img_idx == 2:
                 segmented_img = apply_un_dimanche_filter(segmented_img)
 
-            # Segmenting the human from the bg ( = art)
-            display_image = segmentor.removeBG(camera_img, imgBg, cutThreshold=0.45)
-
+            # Combine the segmented img ( = human plus filter) with the background img ( = art) 
+            display_image = segmentor.combine(condition, segmented_img,  imgBg, cutThreshold=0.45)
+            
+            '''
+            # Make sure the displayed img has alpha channel 
+            if display_image.shape[2] == 3:
+                display_image = cv2.cvtColor(display_image, cv2.COLOR_BGR2BGRA)
+            '''
+        ###############################################################################################
         # Fullscreen
         cv2.namedWindow(windowName, cv2.WND_PROP_FULLSCREEN)
         cv2.setWindowProperty(windowName, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
@@ -308,7 +350,7 @@ def main():
             exit_gesture = any(hand_tracking.close_window(landmark) for landmark in hand_tracking.results.multi_hand_landmarks)
         if exit_gesture and not exit_gesture_detected:
             # Start reverse morph effect
-            morph_images(images[0], curator_img)
+            morph_images(images[img_idx], curator_img)
             show_curator = True
             exit_gesture_detected = True
             person_detected_duration = 0
