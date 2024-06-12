@@ -183,9 +183,11 @@ def main():
     change_detected = False
     person_detector = PersonDetector()
     filter = Filter()                                   # Filter object 
+    
 
     person_timer = Timer()
     person_detected_duration = 0
+    no_person_detected_duration = 0                     # Variable increases when noone is detected in the frame
 
     show_curator = True
     img_idx = 0
@@ -343,6 +345,15 @@ def main():
             if person_detector.detect_person(camera_img):
                 person_detected_duration = 0
                 person_timer.reset()
+                no_person_detected_duration = 0
+            else:
+                if no_person_detected_duration == 0:
+                    person_timer.start()
+                no_person_detected_duration = person_timer.elapsed_time()
+                if no_person_detected_duration >= 5:
+                    show_curator = True
+                    no_person_detected_duration = 0
+                    person_timer.reset()
 
         # Closing with gesture
         exit_gesture = False
