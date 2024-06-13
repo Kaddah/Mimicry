@@ -37,7 +37,7 @@ class SelfiSegmentation():
             imgOut = np.where(condition, img, imgBg)
         return imgOut
 
-    def get_segments(self, img, imgBg=(255, 255, 255), cutThreshold=0.1):
+    def get_segments(self, img, imgBg, cutThreshold=0.1):
         """
 
         :param img: image to remove background from
@@ -61,7 +61,8 @@ class SelfiSegmentation():
         imgOut = np.where(condition, img, emptyFrame)
         return imgOut,condition
         
-    def combine(self, condition, img, imgBg=(255, 255, 255), cutThreshold=0.1):
+
+    def combine(self, condition, img, imgBg, cutThreshold=0.1):
         """
 
         :param img: image to remove background from
@@ -75,6 +76,9 @@ class SelfiSegmentation():
         condition = np.stack(
             (results.segmentation_mask,) * 3, axis=-1) > cutThreshold
             '''
+        
+        
+            
         if isinstance(imgBg, tuple):
             _imgBg = np.zeros(img.shape, dtype=np.uint8)
             _imgBg[:] = imgBg

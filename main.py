@@ -56,6 +56,38 @@ def apply_perspective_transform(img):
     M = cv2.getPerspectiveTransform(pts1, pts2)
     return cv2.warpPerspective(img, M, (195, 385))
 
+# Function to create morph effect between two images
+def morph_images(img1, img2, steps=60):
+    # Resize images to have the same dimensions
+    img1_resized = cv2.resize(img1, (img2.shape[1], img2.shape[0]))
+
+    # Convert img1_resized to RGBA if it is not already
+    if img1_resized.shape[2] == 3:
+        img1_resized = cv2.cvtColor(img1_resized, cv2.COLOR_BGR2BGRA)
+
+    # Convert img2 to RGBA if it is not already
+    if img2.shape[2] == 3:
+        img2 = cv2.cvtColor(img2, cv2.COLOR_BGR2BGRA)
+
+    for i in range(steps + 1):
+        alpha = i / steps
+        # Linear interpolation between the two images
+        morphed_img = cv2.addWeighted(img1_resized, 1 - alpha, img2, alpha, 0)
+        
+        # Apply dream sequence effect
+        # Apply Gaussian blur to the image
+        blurred_img = cv2.GaussianBlur(morphed_img, (15, 15), sigmaX=5, sigmaY=5)
+        
+        # Add a wavy distortion effect
+        rows, cols = blurred_img.shape[:2]
+        scale = 10  # Adjust scale for intensity of distortion
+        wave_shift = scale * np.sin(2 * np.pi * i / steps)
+        M = np.float32([[1, 0, wave_shift], [0, 1, 0]])
+        distorted_img = cv2.warpAffine(blurred_img, M, (cols, rows))
+        
+        # Show the morphed image with dream sequence effect
+        cv2.imshow(windowName, distorted_img)
+        cv2.waitKey(50)  # Adjust delay as needed
 
 # Function to create morph effect between two images
 def morph_images(img1, img2, steps=20):
@@ -89,79 +121,6 @@ def morph_images(img1, img2, steps=20):
         # Show the morphed image with dream sequence effect
         cv2.imshow(windowName, distorted_img)
         cv2.waitKey(50)  # Adjust delay as needed
-
-
-
-
-
-# Helper Function to make black lines in the Filter transparent
-def make_black_lines_transparent(img):
-    # Check if the image has an alpha channel, if not add one
-    if img.shape[2] == 3:
-        img = cv2.cvtColor(img, cv2.COLOR_BGR2BGRA)
-
-    # Create a mask where the black pixels (0, 0, 0) will be transparent
-    black_pixels = np.all(img[:, :, :3] == [0, 0, 0], axis=-1)
-    
-    # Set the alpha channel to 0 (transparent) for black pixels
-    img[black_pixels, 3] = 0
-
-    return img
-
-# Filter Function for Starry Night
-def apply_starry_night_filter(img):
-        img = Filter.apply_duotone_and_cartoon(img, Filter.farbe_gelb, Filter.farbe_dunkelblau, 50, 20)
-        #img = make_black_lines_transparent(img)
-        return img
-
-# Filter Function for the Scream
-def apply_the_scream_filter(img):
-        img = Filter.apply_cartoon(img)
-        #img = make_black_lines_transparent(img)
-        return img
-
-# Filter Function for un Dimanche
-def apply_un_dimanche_filter(img):
-    img = Filter.apply_pencilsketch_and_duotone(img, Filter.farbe_gelb, Filter.farbe_dunkelgruen)
-    return img
-
-# Function to create morph effect between two images
-def morph_images(img1, img2, steps=20):
-    # Resize images to have the same dimensions
-    img1_resized = cv2.resize(img1, (img2.shape[1], img2.shape[0]))
-
-    # Convert img1_resized to RGBA if it is not already
-    if img1_resized.shape[2] == 3:
-        img1_resized = cv2.cvtColor(img1_resized, cv2.COLOR_BGR2BGRA)
-
-    # Convert img2 to RGBA if it is not already
-    if img2.shape[2] == 3:
-        img2 = cv2.cvtColor(img2, cv2.COLOR_BGR2BGRA)
-
-    for i in range(steps + 1):
-        alpha = i / steps
-        # Linear interpolation between the two images
-        morphed_img = cv2.addWeighted(img1_resized, 1 - alpha, img2, alpha, 0)
-        
-        # Apply dream sequence effect
-        # Apply Gaussian blur to the image
-        blurred_img = cv2.GaussianBlur(morphed_img, (15, 15), sigmaX=5, sigmaY=5)
-        
-        # Add a wavy distortion effect
-        rows, cols = blurred_img.shape[:2]
-        scale = 10  # Adjust scale for intensity of distortion
-        wave_shift = scale * np.sin(2 * np.pi * i / steps)
-        M = np.float32([[1, 0, wave_shift], [0, 1, 0]])
-        distorted_img = cv2.warpAffine(blurred_img, M, (cols, rows))
-        
-        # Show the morphed image with dream sequence effect
-        cv2.imshow(windowName, distorted_img)
-        cv2.waitKey(50)  # Adjust delay as needed
-
-
-#############################################################################################################
-# MAIN                                                                                                      #
-#############################################################################################################
 
 # Funktion zur Vorverarbeitung von Bildern
 def preprocess_image(img, target_width, target_height):
@@ -172,6 +131,10 @@ def preprocess_image(img, target_width, target_height):
         img_resized = cv2.cvtColor(img_resized, cv2.COLOR_GRAY2RGB)
     return img_resized
 
+#############################################################################################################
+# MAIN                                                                                                      #
+#############################################################################################################
+
 def main():
     read_images()
     if not images:
@@ -181,8 +144,8 @@ def main():
     gesture_detected = False
     exit_gesture_detected = False
     change_detected = False
-    person_detector = PersonDetector()
-    filter = Filter()                                   # Filter object 
+    person_detector = PersonDetector()      
+    filter = Filter()                                                   # Filter object 
 
     person_timer = Timer()
     person_detected_duration = 0
@@ -266,58 +229,56 @@ def main():
             roi_fg_resized = cv2.resize(camera_img_resized, (roi.shape[1], roi.shape[0]))
             roi_fg = cv2.bitwise_and(roi_fg_resized, roi_fg_resized, mask=roi_fg_resized[:, :, 3])
 
-            roi_fg_rgb = cv2.cvtColor(roi_fg, cv2.COLOR_RGBA2RGB)
-
             # Add the masked foreground and background images
-            dst = cv2.add(roi_bg, roi_fg_resized)
+            dst = cv2.add(roi_bg, roi_fg)
             curator_copy[mirror_coords[1]: mirror_coords[1] + mirror_coords[3], mirror_coords[0]: mirror_coords[0] + mirror_coords[2]] = dst
             display_image = curator_copy
+
 
         ###############################################################################################
         # if the curator scene is not shown, means we see the segmented human in front of the art
         # depending on the art a certain filter is applied to the segmented human 
-        # 
-        # Kommentar: Noch sind schwarze Linien nicht transparent 
         else:
             
             # img_indx is the index number for each art ( 0 = starry night, 1 = the scream, 2 = un dimanche)
             # imgBG is the img of the art
-            imgBg = images[img_idx]       
-            
-            '''
-            # Check if the background and cameraimg have an alpha channel, if not add one
-            if imgBg.shape[2] == 3:
-                imgBg = cv2.cvtColor(imgBg, cv2.COLOR_BGR2BGRA)          
-                
-            if camera_img.shape[2] == 3:
-                camera_img = cv2.cvtColor(camera_img, cv2.COLOR_BGR2BGRA)            
-            '''
-            
+            imgBg = images[img_idx]            
+                    
             # Segmenting the human from the bg ( = art)
+            # Condition determines what img is shown (background / foreground), is needed for def combine (imgBg und segmented img)
             segmented_img, condition = segmentor.get_segments(camera_img, imgBg, cutThreshold=0.45)
 
-            '''
-            # Make sure the segmented img has alpha channel
-            if segmented_img.shape[2] == 3:
-                segmented_img = cv2.cvtColor(segmented_img, cv2.COLOR_BGR2BGRA)
-            '''
-            
-            # Apply filters
+            # APPLY FILTERS ####################################################################################################################
+            # Filter for first art (= starry night) = cartoon filter (lines are transparent) + duotone filter (colors darkblue and yellow, taken from the image)
             if img_idx == 0:
-                segmented_img = apply_starry_night_filter(segmented_img)
+                # Apply the cartoon Filter first on the segmented image, black lines
+                segmented_img = Filter.apply_cartoon(segmented_img)
+                # in the condition mask we check where are black pixels (= cartoon lines), result is either False or True (boolean array)
+                condition = np.where((segmented_img[:,:,0] == 0) & (segmented_img[:,:,1] == 0) & (segmented_img[:,:,2] == 0), False, True)
+                # We need to transform the condition array into the shape (720, 1280, 3) in order to be combined with the other imgs
+                condition = np.stack((condition, condition,condition), axis= -1)
+                # Apply the duotone colors here, else the background gets lost 
+                segmented_img = Filter.apply_duotone_filter(segmented_img, Filter.farbe_gelb, Filter.farbe_dunkelblau)
+            
+            # Filter for second art (= the scream) = cartoon filter (lines are transparent)         
             elif img_idx == 1:
-                segmented_img = apply_the_scream_filter(segmented_img)
+                segmented_img = Filter.apply_cartoon(segmented_img)
+                # in the condition mask we check where are black pixels (= cartoon lines), result is either False or True (boolean array)
+                condition = np.where((segmented_img[:,:,0] == 0) & (segmented_img[:,:,1] == 0) & (segmented_img[:,:,2] == 0), False, True)
+                # We need to transform the condition array into the shape (720, 1280, 3) in order to be combined with the other imgs
+                condition = np.stack((condition, condition,condition), axis= -1)
+               
+            # Filter for third art (= un dimanche) = "Pointilismus" Filter  
+            # Pencilsketch to make it look like its drawn, just like the art
+            # Duotone to adjust the colors to the art >>>>>>>>> Improvement: more colors, taken from the picture  
             elif img_idx == 2:
-                segmented_img = apply_un_dimanche_filter(segmented_img)
+                #segmented_img = Filter.apply_pencilsketch_and_duotone(segmented_img, Filter.farbe_gelb, Filter.farbe_dunkelgruen)
+                #segmented_img = Filter.apply_multitone_filter(segmented_img, Filter.palette)
+                segmented_img = Filter.apply_pencilsketch_and_multitone(segmented_img, Filter.palette)
 
             # Combine the segmented img ( = human plus filter) with the background img ( = art) 
             display_image = segmentor.combine(condition, segmented_img,  imgBg, cutThreshold=0.45)
-            
-            '''
-            # Make sure the displayed img has alpha channel 
-            if display_image.shape[2] == 3:
-                display_image = cv2.cvtColor(display_image, cv2.COLOR_BGR2BGRA)
-            '''
+
         ###############################################################################################
         # Fullscreen
         cv2.namedWindow(windowName, cv2.WND_PROP_FULLSCREEN)

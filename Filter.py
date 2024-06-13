@@ -28,74 +28,21 @@ class Filter:
     farbe_hellblau = (255, 200, 150)
     farbe_dunkelblau = (132, 42, 10)
     farbe_braun = (24, 74, 108)
+    
+    # Farben für un Dimanche Bild
+    farbe_ud_gelb = (225, 209, 98)
+    farbe_ud_grün = (102, 143, 103)
+    #farbe_ud_blau = (161, 203, 243)
+    farbe_ud_dunkelblau = (49, 56, 74)
+    farbe_ud_rot = (213, 93, 43)
+    
+    # Farbpalette für un Dimanche
+    palette = [farbe_ud_gelb, farbe_ud_grün, farbe_ud_dunkelblau, farbe_ud_rot]
             
     ##################################################################################################
     # FILTER                                                                                         #
     ##################################################################################################
-    
-    ######## HILFSFUNKTIONEN #########################################################################
-    
 
-    # Hilfsfunktion für Pointilismus
-    def compute_color_probabilities(pixels, palette):
-        distances = scipy.spatial.distance.cdist(pixels, palette)
-        maxima = np.amax(distances, axis=1)
-        distances = maxima[:, None] - distances
-        summ = np.sum(distances, 1)
-        distances /= summ[:, None]
-        return distances
-    # Hilfsfunktion für Pointilismus
-    def get_color_from_prob(probabilities, palette):
-        probs = np.argsort(probabilities)
-        i = probs[-1]
-        return palette[i]
-    # Hilfsfunktion für Pointilismus
-    def randomized_grid(h, w, scale):
-        assert (scale > 0)
-        r = scale//2
-        grid = []
-        for i in range(0, h, scale):
-            for j in range(0, w, scale):
-                y = random.randint(-r, r) + i
-                x = random.randint(-r, r) + j
-                grid.append((y % h, x % w))
-        random.shuffle(grid)
-        return grid
-        
-    # Hilfsfunktion für Pointilismus
-    def get_color_palette(img, n=20):
-        clt = KMeans(n_clusters=n)
-        clt.fit(img.reshape(-1, 3))
-        return clt.cluster_centers_
-    # Hilfsfunktion für Pointilismus
-    def complement(colors):
-        return 255 - colors
-
-    
-    
-    # Funktion für Farben zählen für Pointilismus
-    #def get_colors(frame):
-        
-        
-        
-    # def make_black_lines_transparent(img):
-        # Überprüfe ob das Bild einen alpha Kanal hat, füge einen alpha kanal hinzu
-        if img.shape[2] == 3:
-            img = cv2.cvtColor(img, cv2.COLOR_BGR2BGRA)
-        
-        # Definiere die schwarzen Linien um sie mit einer Maske entfernen zu können
-        lower_black = np.array([0, 0, 0], dtype=np.uint8)
-        upper_black = np.array([50, 50, 50], dtype=np.uint8)
-
-        # Maske für die schwarzen Pixel
-        black_mask = cv2.inRange(img[:, :, :3], lower_black, upper_black)
-
-        # Setze Alphakanal der Maske auf 0 >> Transparent
-        img[:, :, 3][black_mask == 255] = 0
-
-        return img
-    
-    
     ######## EINFACHE FILTER #########################################################################
     
     # Graustufenfilter
@@ -131,6 +78,52 @@ class Filter:
         
         return duotone_frame
 
+    
+    def apply_multitone_filter(frame, colors):
+        # Convert the image to grayscale
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        
+        # Create an empty image with the same dimensions as the original image
+        multitone_frame = np.zeros_like(frame, dtype=np.float32)
+        
+        # Ensure colors are in BGR format and numpy array
+        colors_bgr = [np.array(color, dtype=np.float32) for color in colors]
+        
+        # Normalize grayscale image to range [0, 1]
+        gray_normalized = gray / 255.0
+        
+        # Get the number of colors
+        num_colors = len(colors_bgr)
+        
+        # Define the segments based on the number of colors
+        segments = np.linspace(0, 1, num_colors)
+        
+        # Interpolate colors based on grayscale values
+        for i in range(num_colors - 1):
+            # Create a mask for the current segment
+            mask = (gray_normalized >= segments[i]) & (gray_normalized < segments[i + 1])
+            
+            # Interpolation factor
+            factor = (gray_normalized[mask] - segments[i]) / (segments[i + 1] - segments[i])
+            
+            # Apply the interpolation for each color channel
+            for j in range(3):
+                multitone_frame[mask, j] = (
+                    (1 - factor) * colors_bgr[i][j] + factor * colors_bgr[i + 1][j]
+                )
+        
+        # Handle the edge case where the grayscale value is exactly 1.0
+        mask = gray_normalized == 1.0
+        multitone_frame[mask] = colors_bgr[-1]
+
+        # Convert back to uint8
+        multitone_frame = np.clip(multitone_frame, 0, 255).astype(np.uint8)
+        
+        return multitone_frame
+
+
+
+
     # Funktion, die Bild wie gemalt aussehen lässt, Cartoonstil
     def apply_cartoon(frame):
         
@@ -139,6 +132,9 @@ class Filter:
         blurred = cv2.medianBlur(gray, 7)
         edges = cv2.adaptiveThreshold(blurred, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY, blockSize=9, C=2)
         colored_edges = cv2.bitwise_and(cartoon_img, cartoon_img, mask=edges)
+        
+        
+        
         return colored_edges
 
     # Funktion, die Bild wie Pencilsketch aussehen lässt (B/w)
@@ -173,31 +169,6 @@ class Filter:
         return oilPainting
 
     # Pointilismus Filter
-    def pointilismus(image, primary_colors):
-        radius_width = int(math.ceil(max(image.shape) / 1000))
-        palette = np.array([ [160,43,29] ,
-                           [131,171,206],
-                           [164,158,62],
-                           [110,127,142]
-                           ])
-        # Filter.get_color_palette(image, primary_colors)
-        complements = Filter.complement(palette)
-        palette = np.vstack((palette, complements))
-        canvas = np.zeros_like(image)  # Erstelle eine leere Leinwand mit den gleichen Abmessungen wie das Bild
-        grid = Filter.randomized_grid(image.shape[0], image.shape[1], scale=3)
-        
-        pixel_colors = np.array([image[x[0], x[1]] for x in grid])
-        
-        color_probabilities = Filter.compute_color_probabilities(pixel_colors, palette)
-        for i, (y, x) in enumerate(grid):
-            color = Filter.get_color_from_prob(color_probabilities[i], palette)
-            # Konvertiere Farbe in das richtige Format (BGR anstelle von RGB)
-            color_bgr = (int(color[2]), int(color[1]), int(color[0]))
-            # Zeichne einen gefüllten Kreis (anstelle einer Ellipse) auf die Leinwand
-            cv2.circle(canvas, (x, y), radius_width, color_bgr, -1, cv2.LINE_AA)
-        return canvas
-
-    '''
     def pointilismus(frame, num_points=500, max_radius=10):
         # Create an empty canvas
         pointillism_frame = np.zeros_like(frame)
@@ -225,7 +196,6 @@ class Filter:
             cv2.circle(pointillism_frame, (x, y), radius, tuple(int(c) for c in color), -1)
         
         return pointillism_frame
-    '''
 
     ######## KOMBINIERTE FILTER ######################################################################
 
@@ -239,6 +209,14 @@ class Filter:
         
         return duotone_frame
 
+    # Pencilsketch + Multitone
+    def apply_pencilsketch_and_multitone(frame, colors):
+        # Pencilsketch anwenden
+        pencil_sketch = Filter.pencilsketch(frame)
+        # Multitone anwenden
+        multitone_frame = Filter.apply_multitone_filter(pencil_sketch, colors)
+        return multitone_frame
+    
     # Duotone + Cartoon
     def apply_duotone_and_cartoon(frame, color1, color2, alpha, beta):
         # Duotone-Filter anwenden
@@ -252,6 +230,7 @@ class Filter:
 
     #####################################################################################################################
     # Hauptschleife des Filter Programms:                                                                               #
+    # Kann man beibehalten, falls man das Projekt erweitern will vielleicht                                             #
     '''
         Main-Schleife
         - Zeigt Kamerabild an: Solange Kamera an ist, wird der Videostream eingelesen >> vc.read()
