@@ -149,6 +149,7 @@ def main():
 
     person_timer = Timer()
     person_detected_duration = 0
+    no_person_detected_duartion = 0
 
     show_curator = True
     img_idx = 0

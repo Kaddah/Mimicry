@@ -5,7 +5,6 @@ import cvzone
 from cvzone.SelfiSegmentationModule import SelfiSegmentation
 import numpy as np
 import scipy
-from sklearn.cluster import KMeans
 
 
 
