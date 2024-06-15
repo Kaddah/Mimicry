@@ -160,6 +160,9 @@ def main():
             print("Failed to read camera")
             break
 
+        # Flip the camera image
+        camera_img = cv2.flip(camera_img, 1)
+
         # Preprocess camera image
         camera_img = preprocess_image(camera_img, width, height)
 
