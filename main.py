@@ -297,7 +297,7 @@ def main():
                 person_detected_duration = person_timer.elapsed_time()
                 if person_detected_duration >= 5:
                     # Start morph effect
-                    morph_images(curator_img, images[0])
+                    morph_images(curator_img, images[img_idx])
                     show_curator = False
                     person_detected_duration = 0
                     person_timer.reset()
