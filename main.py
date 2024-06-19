@@ -8,7 +8,7 @@ from HandTracking import HandLandmarks
 from PersonDetector import PersonDetector
 from Timer import Timer
 from Filter import Filter
-#testy
+
 #############################################################################################################
 # Global variables                                                                                          #
 #############################################################################################################
@@ -124,9 +124,9 @@ def morph_images(img1, img2, steps=20):
 
 # Funktion zur Vorverarbeitung von Bildern
 def preprocess_image(img, target_width, target_height):
-    # Sicherstellen, dass das Bild die Zielabmessungen hat
+    # making sure image has the right measurements
     img_resized = cv2.resize(img, (target_width, target_height))
-    # Sicherstellen, dass das Bild immer drei Kanäle hat (z.B. von Graustufen auf RGB umwandeln)
+    # making sure image has 3 channels
     if img_resized.shape[2] != 3:
         img_resized = cv2.cvtColor(img_resized, cv2.COLOR_GRAY2RGB)
     return img_resized
@@ -192,13 +192,13 @@ def main():
         sub_image = sub_image[:, :, :3]
                     
             
-        # Convert the green area to transparent
+        # mask to simulate the mirror shape
         alpha_mask = np.where((camera_img_resized[:,:,0] == 0) & (camera_img_resized[:,:,1] == 0) & (camera_img_resized[:,:,2] == 0), 0, 255).astype(np.uint8)
-
         
         # render out black pixels
         camera_img_resized = segmentor.removeBG(camera_img_resized, sub_image, cutThreshold=0.8)
         black_pixels_mask = np.all(camera_img_resized == [0, 0, 0], axis=-1)
+        #set black pixels to the same mirror pixels
         camera_img_resized[black_pixels_mask] = sub_image[black_pixels_mask]
 
         if show_curator:
@@ -206,18 +206,18 @@ def main():
             # Merge the alpha mask with the person image
             camera_img_resized = cv2.merge((camera_img_resized[:,:,0], camera_img_resized[:,:,1], camera_img_resized[:,:,2], alpha_mask))
 
-            # Erzeuge die Distanztransformation
+            # create distancetransformation
             dist_transform = cv2.distanceTransform(alpha_mask, cv2.DIST_L2, 5)
             gradient = cv2.normalize(dist_transform, None, 0, 1.0, cv2.NORM_MINMAX)
 
-            # Invertiere den Farbverlauf (umkehren)
+            # invert gradient
             gradient = 1 - gradient
 
-            # Erstelle den Farbverlauf (schwarz nach transparent)
+            # create gradient (black to transparent)
             gradient = (gradient * 25).astype(np.uint8)
             gradient = cv2.merge((gradient, gradient, gradient, gradient))
 
-            # Wende den Farbverlauf auf die Person an
+            # use gradient on person
             alpha_gradient = gradient[:, :, 3]
             alpha_gradient = cv2.cvtColor(alpha_gradient, cv2.COLOR_GRAY2BGRA)
             alpha_gradient[:, :, 3] = gradient[:, :, 3]
@@ -341,10 +341,10 @@ def main():
         if cv2.getWindowProperty(windowName, cv2.WND_PROP_VISIBLE) < 1:
             break
 
-    # Aufräumen
+    # clean up
     vc.release()
     cv2.destroyAllWindows()
 
-# MAIN AUFRUF
+# MAIN CALL
 if __name__ == "__main__":
     main()
