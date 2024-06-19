@@ -205,7 +205,6 @@ def main():
             
             # Merge the alpha mask with the person image
             camera_img_resized = cv2.merge((camera_img_resized[:,:,0], camera_img_resized[:,:,1], camera_img_resized[:,:,2], alpha_mask))
-
             # create distancetransformation
             dist_transform = cv2.distanceTransform(alpha_mask, cv2.DIST_L2, 5)
             gradient = cv2.normalize(dist_transform, None, 0, 1.0, cv2.NORM_MINMAX)
@@ -229,7 +228,7 @@ def main():
 
             # Ensure the mask dimensions match the ROI dimensions
             mask = cv2.resize(cv2.bitwise_not(camera_img_resized[:, :, 3]), (roi.shape[1], roi.shape[0]))
-            roi_bg = cv2.bitwise_and(roi, roi, mask=mask)
+            roi_bg = cv2.bitwise_and(roi, roi, mask)
             roi_fg_resized = cv2.resize(camera_img_resized, (roi.shape[1], roi.shape[0]))
             roi_fg = cv2.bitwise_and(roi_fg_resized, roi_fg_resized, mask=roi_fg_resized[:, :, 3])
 
