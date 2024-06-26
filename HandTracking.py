@@ -16,17 +16,19 @@ class HandTracking:
         self.mpHands = mp.solutions.hands
         self.hands = self.mpHands.Hands()
         self.mpDraw = mp.solutions.drawing_utils
-        self.previous_hand_position = None  # Variable zum Speichern der vorherigen Position
-        self.swipe_in_progress = False  # Zustand für die Erkennung einer Wischbewegung
+        self.previous_hand_position = None  # Variable for saving previous position
+        self.swipe_in_progress = False  # state for identifying swipe gesture
     
     def find_hands(self, img, draw=True):
         imgRGB = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         self.results = self.hands.process(imgRGB)
+        #draw land handmarks
         if self.results.multi_hand_landmarks and draw:
             for handLms in self.results.multi_hand_landmarks:
                 self.mpDraw.draw_landmarks(img, handLms, self.mpHands.HAND_CONNECTIONS)
         return img
 
+    #checking for swipe gesture
     def check_handgesture(self, handLms):
         if len(handLms.landmark) > mp.solutions.hands.HandLandmark.MIDDLE_FINGER_TIP:
             current_position = handLms.landmark[mp.solutions.hands.HandLandmark.MIDDLE_FINGER_TIP]
@@ -37,13 +39,13 @@ class HandTracking:
 
                 if abs(horizontal_movement) > abs(vertical_movement):
                     if horizontal_movement < 0 and not self.swipe_in_progress:
-                        # Hand bewegt sich von rechts nach links
+                        # hand swiping from left to right
                         self.previous_hand_position = current_position
                         self.swipe_in_progress = True  # Beginn der Wischbewegung erkannt
                         return True  # Geste erkannt
                     elif horizontal_movement >= 0:
-                        # Hand bewegt sich nicht mehr nach links
-                        self.swipe_in_progress = False  # Ende der Wischbewegung
+                        # hand stops moving to the left
+                        self.swipe_in_progress = False  # end of swipe movement
                         self.previous_hand_position = current_position
                         return False
                 else:
@@ -55,6 +57,7 @@ class HandTracking:
 
     def close_window(self, handLms):
         mp_hands = mp.solutions.hands
+        #pinch detection
         if len(handLms.landmark) > mp_hands.HandLandmark.MIDDLE_FINGER_TIP:
             middle_finger_tip = handLms.landmark[mp_hands.HandLandmark.MIDDLE_FINGER_TIP]
             thumb_tip = handLms.landmark[mp_hands.HandLandmark.THUMB_TIP]
