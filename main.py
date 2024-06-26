@@ -17,6 +17,7 @@ vc = cv2.VideoCapture(0)
 segmentor = SelfiSegmentation()
 width, height = 1280, 720
 windowName = "Mimicry"
+image_coords = (209,200,542,380)
 mirror_coords = (320, 125, 195, 385)  # x, y, width, height
 images = []
 
@@ -90,7 +91,7 @@ def morph_images(img1, img2, steps=60):
         cv2.waitKey(50)  # Adjust delay as needed
 
 # Function to create morph effect between two images
-def morph_images(img1, img2, steps=20):
+def morph_images(img1, img2, steps=60):
     # Resize images to have the same dimensions
     img1_resized = cv2.resize(img1, (img2.shape[1], img2.shape[0]))
 
@@ -188,12 +189,13 @@ def main():
         camera_img_resized = apply_perspective_transform(camera_img_resized)
         x_start, y_start = mirror_coords[0], mirror_coords[1]   # Top-left corner (x, y)
         x_end, y_end = x_start + mirror_coords[2], y_start + mirror_coords[3]      # Bottom-right corner (x, y)
-        sub_image = curator_img[y_start:y_end, x_start:x_end]
-        sub_image = sub_image[:, :, :3]
+        sub_image = curator_img[y_start:y_end, x_start:x_end]   # ???
+        sub_image = sub_image[:, :, :3]                         # Ausschneiden des Spiegels
                     
             
         # Convert the green area to transparent
         alpha_mask = np.where((camera_img_resized[:,:,0] == 0) & (camera_img_resized[:,:,1] == 0) & (camera_img_resized[:,:,2] == 0), 0, 255).astype(np.uint8)
+        
 
         
         # render out black pixels
@@ -202,26 +204,39 @@ def main():
         camera_img_resized[black_pixels_mask] = sub_image[black_pixels_mask]
 
         if show_curator:
-            
-            # Merge the alpha mask with the person image
-            camera_img_resized = cv2.merge((camera_img_resized[:,:,0], camera_img_resized[:,:,1], camera_img_resized[:,:,2], alpha_mask))
+            # Resize camera_img_resized to match image_coords dimensions
+            camera_img_resized = cv2.resize(camera_img_resized, (image_coords[2], image_coords[3]))
+            # Crop camera_img_resized according to your logic (e.g., camera_img_resized[:, 179:542-175])
+            camera_img_resized = camera_img_resized[:, 179:542-175]
+            # Convert to BGRA format
+            camera_img_resized = cv2.cvtColor(camera_img_resized, cv2.COLOR_BGR2BGRA)
 
-            # Erzeuge die Distanztransformation
-            dist_transform = cv2.distanceTransform(alpha_mask, cv2.DIST_L2, 5)
+            # Ensure alpha_mask is the right shape and type
+            alpha_mask = np.expand_dims(alpha_mask, axis=-1).astype(np.uint8)  # Add an extra dimension and cast to np.uint8
+
+            # Resize alpha_mask to match the dimensions of camera_img_resized
+            alpha_mask_resized = cv2.resize(alpha_mask, (camera_img_resized.shape[1], camera_img_resized.shape[0]))
+
+            # Merge camera_img_resized and alpha_mask_resized into a single BGRA image
+            camera_img_resized = cv2.merge((camera_img_resized[:,:,0], camera_img_resized[:,:,1], camera_img_resized[:,:,2], alpha_mask_resized))
+
+            # Create distance transformation
+            dist_transform = cv2.distanceTransform(alpha_mask_resized, cv2.DIST_L2, 5)
             gradient = cv2.normalize(dist_transform, None, 0, 1.0, cv2.NORM_MINMAX)
 
-            # Invertiere den Farbverlauf (umkehren)
+            # Invert gradient
             gradient = 1 - gradient
 
-            # Erstelle den Farbverlauf (schwarz nach transparent)
+            # Create black-to-transparent gradient
             gradient = (gradient * 25).astype(np.uint8)
             gradient = cv2.merge((gradient, gradient, gradient, gradient))
 
-            # Wende den Farbverlauf auf die Person an
+            # Apply gradient to camera_img_resized
             alpha_gradient = gradient[:, :, 3]
             alpha_gradient = cv2.cvtColor(alpha_gradient, cv2.COLOR_GRAY2BGRA)
             alpha_gradient[:, :, 3] = gradient[:, :, 3]
 
+            # Combine camera_img_resized and alpha_gradient using alpha compositing
             camera_img_resized = cv2.addWeighted(camera_img_resized, 1, alpha_gradient, -1, 0)
             
             curator_copy = curator_img.copy()
@@ -229,13 +244,14 @@ def main():
 
             # Ensure the mask dimensions match the ROI dimensions
             mask = cv2.resize(cv2.bitwise_not(camera_img_resized[:, :, 3]), (roi.shape[1], roi.shape[0]))
-            roi_bg = cv2.bitwise_and(roi, roi, mask=mask)
+            roi_bg = cv2.bitwise_and(roi, roi, mask)
             roi_fg_resized = cv2.resize(camera_img_resized, (roi.shape[1], roi.shape[0]))
             roi_fg = cv2.bitwise_and(roi_fg_resized, roi_fg_resized, mask=roi_fg_resized[:, :, 3])
 
             # Add the masked foreground and background images
             dst = cv2.add(roi_bg, roi_fg)
             curator_copy[mirror_coords[1]: mirror_coords[1] + mirror_coords[3], mirror_coords[0]: mirror_coords[0] + mirror_coords[2]] = dst
+            
             display_image = curator_copy
 
 
