@@ -1,5 +1,6 @@
 import mediapipe as mp
 import cv2
+import numpy as np
 
 class HandLandmarks:
     def __init__(self):
@@ -61,6 +62,20 @@ class HandTracking:
             distance = ((middle_finger_tip.x - thumb_tip.x) ** 2 + (middle_finger_tip.y - thumb_tip.y) ** 2) ** 0.5
             if distance < 0.03:
                 return True
+            
+    def calculate_distance(self, handLms):
+        mp_hands = mp.solutions.hands
+        width, height = 1280, 720
+        if len(handLms.landmark) > mp_hands.HandLandmark.MIDDLE_FINGER_TIP:
+                wrist = handLms.landmark[mp_hands.HandLandmark.WRIST]
+                middle_finger_tip = handLms.landmark[mp_hands.HandLandmark.MIDDLE_FINGER_TIP]
+                
+                wrist_coords = (wrist.x * width, wrist.y * height)
+                middle_finger_tip_coords = (middle_finger_tip.x * width, middle_finger_tip.y * height)
+
+                distance = np.linalg.norm(np.array(wrist_coords) - np.array(middle_finger_tip_coords))
+                if distance > 10:
+                    return True
 
 
 

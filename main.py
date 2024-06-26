@@ -131,6 +131,25 @@ def preprocess_image(img, target_width, target_height):
         img_resized = cv2.cvtColor(img_resized, cv2.COLOR_GRAY2RGB)
     return img_resized
 
+def play_video(video_path):
+    cap = cv2.VideoCapture(video_path)
+    if not cap.isOpened():
+        print(f"Error opening video file: {video_path}")
+        return
+    
+
+    
+
+    while cap.isOpened():
+        ret, frame = cap.read()
+        if not ret:
+            break
+        cv2.imshow(windowName, frame)
+        if cv2.waitKey(25) & 0xFF == 27:  # Press 'ESC' to exit the video early
+            break
+
+    cap.release()
+
 #############################################################################################################
 # MAIN                                                                                                      #
 #############################################################################################################
@@ -150,6 +169,8 @@ def main():
     person_timer = Timer()
     person_detected_duration = 0
     no_person_detected_duartion = 0
+
+    video_is_playing = False
 
     show_curator = True
     img_idx = 0
@@ -182,6 +203,16 @@ def main():
 
         if not current_gesture:
             gesture_detected = False
+
+        # Calculate distance between middle finger tip and wrist
+        video_played = False
+        if not show_curator and hand_tracking.results.multi_hand_landmarks:
+            video_played = any(hand_tracking.calculate_distance(landmark) for landmark in hand_tracking.results.multi_hand_landmarks)
+            if video_played and not video_is_playing:
+                play_video('./images/Crackanimation.mp4')
+                video_is_playing = True
+            if not video_played:
+                video_is_playing = False
 
         # Resize and transform image
         camera_img_resized = cv2.resize(camera_img, (mirror_coords[2], mirror_coords[3]))
