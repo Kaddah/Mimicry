@@ -205,7 +205,6 @@ def main():
             
             # Merge the alpha mask with the person image
             camera_img_resized = cv2.merge((camera_img_resized[:,:,0], camera_img_resized[:,:,1], camera_img_resized[:,:,2], alpha_mask))
-
             # create distancetransformation
             dist_transform = cv2.distanceTransform(alpha_mask, cv2.DIST_L2, 5)
             gradient = cv2.normalize(dist_transform, None, 0, 1.0, cv2.NORM_MINMAX)
@@ -229,7 +228,7 @@ def main():
 
             # Ensure the mask dimensions match the ROI dimensions
             mask = cv2.resize(cv2.bitwise_not(camera_img_resized[:, :, 3]), (roi.shape[1], roi.shape[0]))
-            roi_bg = cv2.bitwise_and(roi, roi, mask=mask)
+            roi_bg = cv2.bitwise_and(roi, roi, mask)
             roi_fg_resized = cv2.resize(camera_img_resized, (roi.shape[1], roi.shape[0]))
             roi_fg = cv2.bitwise_and(roi_fg_resized, roi_fg_resized, mask=roi_fg_resized[:, :, 3])
 
@@ -253,6 +252,7 @@ def main():
             segmented_img, condition = segmentor.get_segments(camera_img, imgBg, cutThreshold=0.45)
 
             # APPLY FILTERS ####################################################################################################################
+<<<<<<< HEAD
             # Filter for first art (= girl with a pearl) = oilpainting 
             if img_idx == 0:
                 # apply oilpainting filter
@@ -261,6 +261,18 @@ def main():
             
             # Filter for second art (= starry night) = cartoon filter (lines are transparent) + duotone filter (colors darkblue and yellow, taken from the image)
             if img_idx == 1:
+=======
+            
+            # Filter for girl with a peal earring = oil painting 
+            if img_idx == 0:
+                segmented_img = Filter.oil_painting(segmented_img)
+            
+            # Filter for picasso 
+            
+            
+            # Filter for starry night = cartoon filter (lines are transparent) + duotone filter (colors darkblue and yellow, taken from the image)
+            if img_idx == 2:
+>>>>>>> 93c7f82580f9b5c038cb0987947d3139beb691e3
                 # Apply the cartoon Filter first on the segmented image, black lines
                 segmented_img = Filter.apply_cartoon(segmented_img)
                 # in the condition mask we check where are black pixels (= cartoon lines), result is either False or True (boolean array)
@@ -270,18 +282,30 @@ def main():
                 # Apply the duotone colors here, else the background gets lost 
                 segmented_img = Filter.apply_duotone_filter(segmented_img, Filter.farbe_gelb, Filter.farbe_dunkelblau)
             
+<<<<<<< HEAD
             # Filter for third art (= the scream) = cartoon filter (lines are transparent)         
             elif img_idx == 2:
+=======
+            # Filter for the scream = cartoon filter (lines are transparent)         
+            elif img_idx == 3:
+>>>>>>> 93c7f82580f9b5c038cb0987947d3139beb691e3
                 segmented_img = Filter.apply_cartoon(segmented_img)
                 # in the condition mask we check where are black pixels (= cartoon lines), result is either False or True (boolean array)
                 condition = np.where((segmented_img[:,:,0] == 0) & (segmented_img[:,:,1] == 0) & (segmented_img[:,:,2] == 0), False, True)
                 # We need to transform the condition array into the shape (720, 1280, 3) in order to be combined with the other imgs
                 condition = np.stack((condition, condition,condition), axis= -1)
                
+<<<<<<< HEAD
             # Filter for fourth art (= un dimanche) = "Pointilismus" Filter  
             # Pencilsketch to make it look like its drawn, just like the art
             # Duotone to adjust the colors to the art >>>>>>>>> Improvement: more colors, taken from the picture  
             elif img_idx == 3:
+=======
+            # Filter for un dimanche = "Pointilismus" Filter  
+            # Pencilsketch to make it look like its drawn, just like the art
+            # Duotone to adjust the colors to the art >>>>>>>>> Improvement: more colors, taken from the picture  
+            elif img_idx == 4:
+>>>>>>> 93c7f82580f9b5c038cb0987947d3139beb691e3
                 #segmented_img = Filter.apply_pencilsketch_and_duotone(segmented_img, Filter.farbe_gelb, Filter.farbe_dunkelgruen)
                 #segmented_img = Filter.apply_multitone_filter(segmented_img, Filter.palette)
                 segmented_img = Filter.apply_pencilsketch_and_multitone(segmented_img, Filter.palette)

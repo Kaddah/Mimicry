@@ -119,7 +119,11 @@ class Filter:
         
         return multitone_frame
 
+<<<<<<< HEAD
     # Cartoon Style 
+=======
+    # Funktion, die Bild wie gemalt aussehen lässt, Cartoonstil
+>>>>>>> 93c7f82580f9b5c038cb0987947d3139beb691e3
     def apply_cartoon(frame):
         # Apply a bilateral filter to the image to smooth the colors while preserving edges
         # This helps in achieving the cartoon effect by reducing the color palette of the image
@@ -261,6 +265,21 @@ class Filter:
         
         return stylized_frame
 
+<<<<<<< HEAD
+=======
+
+
+
+    # Filter für Picasso:
+    # Lass den Menschen wie Geometrische Formen aussehen
+    # Male ein paar gewählte Farben drüber 
+    # Vlt Cartoon Lines drumherum (schwarze Linien) 
+    
+    
+
+
+
+>>>>>>> 93c7f82580f9b5c038cb0987947d3139beb691e3
     #####################################################################################################################
     # MAIN LOOP OF ORIGINAL FILTER PROGRAMM                                                                             #
     # is not used in the final project, but can be used for further improvements                                        #
