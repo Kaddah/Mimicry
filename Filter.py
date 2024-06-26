@@ -6,19 +6,19 @@ from cvzone.SelfiSegmentationModule import SelfiSegmentation
 import numpy as np
 import scipy
 
-
+# Class that implements the Filters that are applied to the arts ( = backgrounds)
 
 class Filter: 
     
     ##################################################################################################
-    # VARIABLEN                                                                                      #
-    # filter_mode für die spätere Auswahl per Tastatur                                               #
-    # Farben für Filter händisch festgelegt                                                          #
+    # VARIABLES                                                                                      #
     ##################################################################################################
     
-    filter_mode = None
-            
-    farbe_gelb = (47, 235, 255)
+    filter_mode = None                          # needed if the filter is seleceted via keyboard, not used in the final project 
+    
+    
+    # defined colors for certain filters         
+    farbe_gelb = (47, 235, 255)     # (R, G, B)    
     farbe_orange = (85, 165, 255)
     farbe_rot = (0, 0, 255)
     farbe_rosa = (202, 148, 255)
@@ -28,56 +28,55 @@ class Filter:
     farbe_dunkelblau = (132, 42, 10)
     farbe_braun = (24, 74, 108)
     
-    # Farben für un Dimanche Bild
+    # certain colors for un dimanche art 
     farbe_ud_gelb = (225, 209, 98)
     farbe_ud_grün = (102, 143, 103)
     #farbe_ud_blau = (161, 203, 243)
     farbe_ud_dunkelblau = (49, 56, 74)
     farbe_ud_rot = (213, 93, 43)
     
-    # Farbpalette für un Dimanche
+    # color palette for un dimanche filter, put the defined colors in a list
     palette = [farbe_ud_gelb, farbe_ud_grün, farbe_ud_dunkelblau, farbe_ud_rot]
             
     ##################################################################################################
     # FILTER                                                                                         #
     ##################################################################################################
 
-    ######## EINFACHE FILTER #########################################################################
+    ######## SIMPLE FILTER #########################################################################
     
-    # Graustufenfilter
+    # Grayscale 
     def apply_grayscale(frame):
         grauBild = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        Bild = grauBild[:,:,np.newaxis]           # Mit newaxis machen wir das Bild wieder 3D statt 2D, dann passt es zsm 
+        Bild = grauBild[:,:,np.newaxis]           # newaxis turns the img from 2D into 3D 
         return Bild
    
-    # Negativfilter
+    # Negative
     def apply_negative(frame):
-        return cv2.bitwise_not(frame)
+        return cv2.bitwise_not(frame)   # inverts the colors
 
-    # Clear, zeigt einfach unverändertes Kamerabild an
+    # Clear, shows unchanged camera image 
     def clear(frame):
-        return frame  # Keine Änderung, das Bild bleibt unverändert
+        return frame  
 
-    # Funktion zur Anwendung eines Duoton-Filters
+    # Duotone 
     def apply_duotone_filter(frame, color1, color2):
-        # Konvertiere das Bild in Graustufen
+        # convert into grayscale
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        
-        # Erstelle ein leeres Bild mit den gleichen Abmessungen wie das ursprüngliche Bild
+        # create an empty frame, same size as input img
         duotone_frame = np.zeros_like(frame)
         
-        # Bestimme die Farben für den Duoton-Effekt
+        # define the two colors 
         color1_bgr = np.array(color1, dtype=np.uint8)
         color2_bgr = np.array(color2, dtype=np.uint8)
         
-        # Setze den Wert jedes Pixels im duotonen Bild entsprechend des Grauwerts des Originalbildes und der gewünschten Farben
-        duotone_frame[:, :, 0] = (gray / 255.0) * color1_bgr[0] + ((1 - gray / 255.0) * color2_bgr[0])  # setzt den Blaukanal entsprechend der Grauwerte und den Colorwerten im Bild
-        duotone_frame[:, :, 1] = (gray / 255.0) * color1_bgr[1] + ((1 - gray / 255.0) * color2_bgr[1])  # Setzt den Grünkanal wie oben
-        duotone_frame[:, :, 2] = (gray / 255.0) * color1_bgr[2] + ((1 - gray / 255.0) * color2_bgr[2])  # setzt den Rotkanal wie oben
+        # set value of each pixel in the duotone img according to the grayscale value of the orignal image
+        duotone_frame[:, :, 0] = (gray / 255.0) * color1_bgr[0] + ((1 - gray / 255.0) * color2_bgr[0])  # sets blue component
+        duotone_frame[:, :, 1] = (gray / 255.0) * color1_bgr[1] + ((1 - gray / 255.0) * color2_bgr[1])  # sets green component 
+        duotone_frame[:, :, 2] = (gray / 255.0) * color1_bgr[2] + ((1 - gray / 255.0) * color2_bgr[2])  # sets red component 
         
         return duotone_frame
-
     
+    # Multitone, similar to duotone, but more than two colors
     def apply_multitone_filter(frame, colors):
         # Convert the image to grayscale
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
@@ -120,147 +119,178 @@ class Filter:
         
         return multitone_frame
 
-
-
-
-    # Funktion, die Bild wie gemalt aussehen lässt, Cartoonstil
+    # Cartoon Style 
     def apply_cartoon(frame):
-        
+        # Apply a bilateral filter to the image to smooth the colors while preserving edges
+        # This helps in achieving the cartoon effect by reducing the color palette of the image
         cartoon_img = cv2.bilateralFilter(frame, d=9, sigmaColor=75, sigmaSpace=75)
+        
+        # Convert the smoothed image to grayscale
+        # Grayscale conversion is necessary for edge detection
         gray = cv2.cvtColor(cartoon_img, cv2.COLOR_BGR2GRAY)
+        
+        # Apply a median blur to the grayscale image to reduce noise
+        # This helps in creating smoother edges when we perform edge detection
         blurred = cv2.medianBlur(gray, 7)
+        
+        # Use adaptive thresholding to detect edges in the blurred grayscale image
+        # Adaptive thresholding helps in finding edges in different lighting conditions
         edges = cv2.adaptiveThreshold(blurred, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY, blockSize=9, C=2)
+        
+        # Combine the edges with the color image using a bitwise AND operation
+        # This overlays the detected edges on the smoothed, color-reduced image to create the cartoon effect
         colored_edges = cv2.bitwise_and(cartoon_img, cartoon_img, mask=edges)
-        
-        
         
         return colored_edges
 
-    # Funktion, die Bild wie Pencilsketch aussehen lässt (B/w)
+    # Pencilsketch (B/w)
     def sketch(frame):
-
+        # Convert the image to grayscale
+        # Purpose: Simplifies the image by reducing it to a single channel, making it easier to detect edges
         img_gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        img_gray_blur = cv2.GaussianBlur(img_gray, (5,5), 0)
+        
+        # Apply a Gaussian blur to the grayscale image
+        # Purpose: Smooths the image, reducing noise and detail which can help in better edge detection
+        img_gray_blur = cv2.GaussianBlur(img_gray, (5, 5), 0)
+        
+        # Perform Canny edge detection
+        # Purpose: Detects edges in the blurred grayscale image
         canny_edges = cv2.Canny(img_gray_blur, 10, 70)
+        
+        # Apply a binary inverse threshold to the edge-detected image
+        # Purpose: Converts the edges to white and the background to black, creating a sketch-like effect
         ret, mask = cv2.threshold(canny_edges, 70, 255, cv2.THRESH_BINARY_INV)
+        
         return mask
 
-    # Funktion, die Bild wie Pencilsketch aussehen lässt, in Farbe
     def pencilsketch(frame):
-
-        # Umkehren des Graustufenbildes für den Sketch-Effekt
+        # Invert the colors of the image
+        # Purpose: Create a negative image for further processing
         inverted_img = cv2.bitwise_not(frame)
         
-        # Anwendung der Glättung (Gaussian Blur)
+        # Apply Gaussian blur to the inverted image
+        # Purpose: Smooth the inverted image to create a more natural sketch effect
         img_smoothing = cv2.GaussianBlur(inverted_img, (21, 21), sigmaX=0, sigmaY=0)
         
-        # Invertieren des geglätteten Bildes
+        # Invert the blurred image
+        # Purpose: Re-invert the smoothed image to prepare for blending with the original
         inverted_img_smoothing = cv2.bitwise_not(img_smoothing)
         
-        # Erstellung des Pencil-Sketch-Effekts durch Berechnung des Differenzbildes
+        # Blend the original image with the inverted, smoothed image to create the pencil sketch effect
+        # Purpose: The division highlights the edges and creates a sketch-like appearance
         pencil_sketch = cv2.divide(frame, inverted_img_smoothing, scale=256.0)
         
         return pencil_sketch
 
-    # Funktion, die Bild wie Ölgemälde aussehen lässt
     def oil_painting(frame):
+        # Apply the oil painting effect using the xphoto module
+        # Parameters:
+        # - size: Neighborhood size used for filtering (7)
+        # - dynRatio: Dynamic range ratio for quantization (1)
+        # Purpose: Converts the image to look like an oil painting by filtering and quantizing colors
         oilPainting = cv2.xphoto.oilPainting(frame, 7, 1)
+        
         return oilPainting
 
-    # Pointilismus Filter
     def pointilismus(frame, num_points=500, max_radius=10):
-        # Create an empty canvas
+        # Create an empty canvas with the same dimensions as the input frame
+        # Purpose: To have a blank image where the pointillism effect will be drawn
         pointillism_frame = np.zeros_like(frame)
         
-        # Get dimensions of the frame
+        # Get the dimensions of the input frame
+        # Purpose: To know the size of the image for placing points correctly
         h, w, _ = frame.shape
         
-        # Create a grid of points
+        # Create a grid of points with a spacing of max_radius
+        # Purpose: To generate a set of candidate points for drawing circles
         points = np.mgrid[0:h:max_radius, 0:w:max_radius].reshape(2, -1).T
         
         # Shuffle the grid points
+        # Purpose: To randomly distribute the points over the image
         np.random.shuffle(points)
         
-        # Limit the number of points
+        # Limit the number of points to num_points
+        # Purpose: To control the density of points in the pointillism effect
         points = points[:num_points]
         
         for y, x in points:
-            # Randomly pick a radius
+            # Randomly pick a radius for the circle
+            # Purpose: To vary the size of the circles, enhancing the artistic effect
             radius = random.randint(1, max_radius)
             
             # Get the color of the point from the original frame
+            # Purpose: To use the original image's color for the pointillism effect
             color = frame[y, x]
             
             # Draw a filled circle at the chosen point with the chosen color
+            # Purpose: To create the pointillism effect by drawing colored circles
             cv2.circle(pointillism_frame, (x, y), radius, tuple(int(c) for c in color), -1)
         
         return pointillism_frame
 
-    ######## KOMBINIERTE FILTER ######################################################################
+    ######## COMBINED FILTER ######################################################################
 
     # Pencilsketch + Duotone
+    # Apply pencilsketch to the input, then duotone to create a combined effect 
     def apply_pencilsketch_and_duotone(frame, color1, color2):
-        # Pencil Sketch anwenden
+        # Pencil Sketch 
         pencil_sketch = Filter.pencilsketch(frame)
         
-        # Duotone-Filter anwenden auf das Pencil Sketch-Bild
+        # Duotone-Filter 
         duotone_frame = Filter.apply_duotone_filter(pencil_sketch, color1, color2)
         
         return duotone_frame
 
     # Pencilsketch + Multitone
+    # Apply pencilsketch to the input, then multitone to create a combined effect
     def apply_pencilsketch_and_multitone(frame, colors):
-        # Pencilsketch anwenden
+        # Pencilsketch 
         pencil_sketch = Filter.pencilsketch(frame)
-        # Multitone anwenden
+        # Multitone 
         multitone_frame = Filter.apply_multitone_filter(pencil_sketch, colors)
         return multitone_frame
     
     # Duotone + Cartoon
+    # Apply duotone to the input, then cartoon to create a combined effect
     def apply_duotone_and_cartoon(frame, color1, color2, alpha, beta):
-        # Duotone-Filter anwenden
+        # Duotone-Filter 
         duotone_frame = Filter.apply_duotone_filter(frame, color1, color2)
         
-        # Stilisierungsfilter anwenden
+        # Stilisierungsfilter 
         stylized_frame = Filter.apply_cartoon(duotone_frame)
         
         return stylized_frame
 
-
     #####################################################################################################################
-    # Hauptschleife des Filter Programms:                                                                               #
-    # Kann man beibehalten, falls man das Projekt erweitern will vielleicht                                             #
+    # MAIN LOOP OF ORIGINAL FILTER PROGRAMM                                                                             #
+    # is not used in the final project, but can be used for further improvements                                        #
     '''
-        Main-Schleife
-        - Zeigt Kamerabild an: Solange Kamera an ist, wird der Videostream eingelesen >> vc.read()
-        - Sonst Fehlermeldung
-        - Nutzereingaben über Tasten: 
-            b = Hintergrund anzeigen / ausblenden
-            n = nächster Hintergrund
+        Main-Loop
+        - show camera img: as long as camera is open, read videostream >> vc.read()
+        - else error message
+        - Keyboard Input: 
+            b = toggle show background 
+            n = next background 
             s = screenshot
-            g = Graustufenfilter
-            m = Negativfilter
-            q = Quit = Programm wird beendet
+            g = grayscale
+            m = negative
+            q = Quit (exit the program)
             o = Oilpainting
             d = Duotone
-            r = Duotone und Sketch
+            r = Duotone and Sketch
             t = sketch
-            e = pencilsketch und duotone
+            e = pencilsketch and duotone
             p = pencilsketch
             i = pointilismus 
-        - Um Hintergrund mit gleicher Taste an / aus zuschalten wird ein Backgroundflag benutzt
-        Ist das Flag gesetzt, ist der Hintergrund an, d.h. beim nächsten Drücken der Taste b wird der HG ausgeschaltet
-        und das Flag auf aus gesetzt (False). Wenn Nutzer taste n drückt, wird HG automatisch angezeigt und Flag wird 
-        auf True gesetzt.
+        - use background flag to be able to switch background on and off with only one key
     '''                                                                                                                 #
     #####################################################################################################################
 
     def apply_filter():
-        # Tastaturbelegung:
         key = cv2.waitKey(1)
         
             
-        if key == ord('g'):  # g = Schwarz-Weiß
+        if key == ord('g'):  # g = b/w
             filter_mode = 'grayscale' if filter_mode != 'grayscale' else None
 
         elif key == ord('m'):  # n = Negativ
@@ -269,29 +299,29 @@ class Filter:
         elif key == ord('c'):  # c = clear
             filter_mode = 'clear' if filter_mode != 'clear' else None
         
-        elif key == ord('g'): # g für Duoton
+        elif key == ord('g'): # g  Duoton
             filter_mode = 'duotone' if filter_mode != 'duotone' else None
             
-        elif key == ord('t'): # t für carToon
+        elif key == ord('t'): # t  carToon
             filter_mode = 'cartoon' if filter_mode != 'cartoon' else None
         
-        elif key == ord('p'): # p für PencilSketch
+        elif key == ord('p'): # p  PencilSketch
             filter_mode = 'pencilsketch' if filter_mode != 'pencilsketch' else None
 
-        elif key == ord('r'):  # r für Duotone und caRtoon
+        elif key == ord('r'):  # r  Duotone and caRtoon
             filter_mode = 'duotone_and_cartoon' if filter_mode != 'duotone_and_cartoon' else None
         
-        elif key == ord('e'):   # e für DuotonE und pEncilskEtch
+        elif key == ord('e'):   # e  DuotonE and pEncilskEtch
             filter_mode = 'pencilsketch_and_duotone' if filter_mode != 'pencilsketch_and_duotone' else None
             
-        elif key == ord('o'):   # o für Oilpainting
+        elif key == ord('o'):   # o  Oilpainting
             filter_mode = 'oilPainting' if filter_mode != 'oilPainting' else None
         
-        elif key == ord('i'):    # i für poIntIlIsmus 
+        elif key == ord('i'):    # i  poIntIlIsmus 
             filter_mode = 'pointilismus' if filter_mode != 'pointilismus' else None
 
 
-        # Filter anwenden je nach Auswahl 
+        # apply filter according to keyboard input
         if filter_mode == 'grayscale':
             frame = Filter.apply_grayscale(frame)
             
@@ -312,9 +342,12 @@ class Filter:
         
         elif filter_mode == 'pointilismus':
             frame = Filter.pointilismus(frame, 10)
-            
-        '''    
-            
+         
+          
+        # Following code used the background index to apply the combined filters,   
+        # this is not used in the final project 
+        # if you want to use this in the future you need to add the background index logic in this class  
+        ''' 
         elif filter_mode == 'duotone':
             if Filter.show_background_flag and current_background_index == 0:                      # Überprüft welcher HG gewählt ist
                 frame = Filter.apply_duotone_filter(frame, Filter.farbe_gelb, Filter.farbe_dunkelblau)           # Farben für HG 0
