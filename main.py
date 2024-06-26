@@ -327,10 +327,20 @@ def main():
             else:
                 person_detected_duration = 0
                 person_timer.reset()
-        else:
+        else:                                                   #Switching back to curator by not detection a person in 5 seconds
             if person_detector.detect_person(camera_img):
                 person_detected_duration = 0
                 person_timer.reset()
+                no_person_detected_duration = 0
+            else:
+                if no_person_detected_duration == 0:
+                    person_timer.start()
+                no_person_detected_duration = person_timer.elapsed_time()
+                if no_person_detected_duration >= 5:
+                    morph_images(images[img_idx], curator_img)
+                    show_curator = True
+                    no_person_detected_duration = 0
+                    person_timer.reset()
 
         # Closing with gesture
         exit_gesture = False
