@@ -253,8 +253,16 @@ def main():
             segmented_img, condition = segmentor.get_segments(camera_img, imgBg, cutThreshold=0.45)
 
             # APPLY FILTERS ####################################################################################################################
-            # Filter for first art (= starry night) = cartoon filter (lines are transparent) + duotone filter (colors darkblue and yellow, taken from the image)
+            
+            # Filter for girl with a peal earring = oil painting 
             if img_idx == 0:
+                segmented_img = Filter.oil_painting(segmented_img)
+            
+            # Filter for picasso 
+            
+            
+            # Filter for starry night = cartoon filter (lines are transparent) + duotone filter (colors darkblue and yellow, taken from the image)
+            if img_idx == 2:
                 # Apply the cartoon Filter first on the segmented image, black lines
                 segmented_img = Filter.apply_cartoon(segmented_img)
                 # in the condition mask we check where are black pixels (= cartoon lines), result is either False or True (boolean array)
@@ -264,18 +272,18 @@ def main():
                 # Apply the duotone colors here, else the background gets lost 
                 segmented_img = Filter.apply_duotone_filter(segmented_img, Filter.farbe_gelb, Filter.farbe_dunkelblau)
             
-            # Filter for second art (= the scream) = cartoon filter (lines are transparent)         
-            elif img_idx == 1:
+            # Filter for the scream = cartoon filter (lines are transparent)         
+            elif img_idx == 3:
                 segmented_img = Filter.apply_cartoon(segmented_img)
                 # in the condition mask we check where are black pixels (= cartoon lines), result is either False or True (boolean array)
                 condition = np.where((segmented_img[:,:,0] == 0) & (segmented_img[:,:,1] == 0) & (segmented_img[:,:,2] == 0), False, True)
                 # We need to transform the condition array into the shape (720, 1280, 3) in order to be combined with the other imgs
                 condition = np.stack((condition, condition,condition), axis= -1)
                
-            # Filter for third art (= un dimanche) = "Pointilismus" Filter  
+            # Filter for un dimanche = "Pointilismus" Filter  
             # Pencilsketch to make it look like its drawn, just like the art
             # Duotone to adjust the colors to the art >>>>>>>>> Improvement: more colors, taken from the picture  
-            elif img_idx == 2:
+            elif img_idx == 4:
                 #segmented_img = Filter.apply_pencilsketch_and_duotone(segmented_img, Filter.farbe_gelb, Filter.farbe_dunkelgruen)
                 #segmented_img = Filter.apply_multitone_filter(segmented_img, Filter.palette)
                 segmented_img = Filter.apply_pencilsketch_and_multitone(segmented_img, Filter.palette)

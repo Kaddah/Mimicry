@@ -85,6 +85,15 @@ class SelfiSegmentation():
             imgOut = np.where(condition, img, _imgBg)
         else:
             imgOut = np.where(condition, img, imgBg)
+            
+            alpha = condition.astype(float) 
+            #mask = mask * 255
+            
+            alpha = cv2.GaussianBlur(alpha, (21,21), 10 )
+            cv2.imshow("blurred mask", alpha * 255)
+            
+            imgOut = cv2.addWeighted(img, alpha, imgBg)
+            
         return imgOut
 
 

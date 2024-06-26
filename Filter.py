@@ -76,7 +76,6 @@ class Filter:
         duotone_frame[:, :, 2] = (gray / 255.0) * color1_bgr[2] + ((1 - gray / 255.0) * color2_bgr[2])  # setzt den Rotkanal wie oben
         
         return duotone_frame
-
     
     def apply_multitone_filter(frame, colors):
         # Convert the image to grayscale
@@ -119,9 +118,6 @@ class Filter:
         multitone_frame = np.clip(multitone_frame, 0, 255).astype(np.uint8)
         
         return multitone_frame
-
-
-
 
     # Funktion, die Bild wie gemalt aussehen lässt, Cartoonstil
     def apply_cartoon(frame):
@@ -225,6 +221,17 @@ class Filter:
         stylized_frame = Filter.apply_cartoon(duotone_frame)
         
         return stylized_frame
+
+
+
+
+    # Filter für Picasso:
+    # Lass den Menschen wie Geometrische Formen aussehen
+    # Male ein paar gewählte Farben drüber 
+    # Vlt Cartoon Lines drumherum (schwarze Linien) 
+    
+    
+
 
 
     #####################################################################################################################
