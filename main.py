@@ -210,6 +210,41 @@ def main():
         #set black pixels to the same mirror pixels
         camera_img_resized[black_pixels_mask] = sub_image[black_pixels_mask]
 
+        # Switch the background if a person is detected in the frame for 5 seconds 
+        if show_curator:                                    # check if curator is shown currently 
+            if person_detector.detect_person(camera_img):   # detect if person is in the camera image 
+                if person_detected_duration == 0:           # check if detection timer has not started
+                    person_timer.start()                    # start timer
+                person_detected_duration = person_timer.elapsed_time() # update the duration for which the person has been detected
+                if person_detected_duration >= 5: # check if person has been detected for at least five seconds
+                    # Start morph effect to switch scene
+                    morph_images(curator_img, images[img_idx]) # morph curator with current background
+                    show_curator = False # set curator flag to false, means we dont see the curator anymore
+                    person_detected_duration = 0 # reset detection duration
+                    person_timer.reset() # reset the timer
+            else: # if not person is detected
+                person_detected_duration = 0 # reset detection duration
+                person_timer.reset() # reset timer
+        else: # if not showing the curator
+            if person_detector.detect_person(camera_img):# detect if a person is in the camera image
+                person_detected_duration = 0 # reset detection duration
+                person_timer.reset() # reset timer
+
+        # Closing with gesture
+        exit_gesture = False # initialize exit gesture flag
+        if not show_curator and hand_tracking.results. multi_hand_landmarks: # check for exit gesture only when not showing the curator scene and hands are detected
+            exit_gesture = any(hand_tracking.close_window(landmark) for landmark in hand_tracking.results.multi_hand_landmarks) # detect if the exit gesture is made
+        if exit_gesture and not exit_gesture_detected:
+            # Start reverse morph effect to return to the curator scene
+            morph_images(images[img_idx], curator_img) # morph current background image to the curator scene
+            show_curator = True # set the curator flag TRUE, means we see the curator again
+            exit_gesture_detected = True # set the exit gesture flag TRUE, means the exit gesture has been handled
+            person_detected_duration = 0 # rest detection duration
+            person_timer.reset() # reset timer
+
+        if not exit_gesture: # if not exit gesture has been detected
+            exit_gesture_detected = False # reset the flag to FALSE
+
         if show_curator:
             # Resize camera_img_resized to match image_coords dimensions
             camera_img_resized = cv2.resize(camera_img_resized, (image_coords[2], image_coords[3]))
@@ -318,40 +353,7 @@ def main():
         cv2.setWindowProperty(windowName, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
         cv2.imshow(windowName, display_image)
 
-        # Switch the background if a person is detected in the frame for 5 seconds 
-        if show_curator:                                    # check if curator is shown currently 
-            if person_detector.detect_person(camera_img):   # detect if person is in the camera image 
-                if person_detected_duration == 0:           # check if detection timer has not started
-                    person_timer.start()                    # start timer
-                person_detected_duration = person_timer.elapsed_time() # update the duration for which the person has been detected
-                if person_detected_duration >= 5: # check if person has been detected for at least five seconds
-                    # Start morph effect to switch scene
-                    morph_images(curator_img, images[img_idx]) # morph curator with current background
-                    show_curator = False # set curator flag to false, means we dont see the curator anymore
-                    person_detected_duration = 0 # reset detection duration
-                    person_timer.reset() # reset the timer
-            else: # if not person is detected
-                person_detected_duration = 0 # reset detection duration
-                person_timer.reset() # reset timer
-        else: # if not showing the curator
-            if person_detector.detect_person(camera_img):# detect if a person is in the camera image
-                person_detected_duration = 0 # reset detection duration
-                person_timer.reset() # reset timer
-
-        # Closing with gesture
-        exit_gesture = False # initialize exit gesture flag
-        if not show_curator and hand_tracking.results. multi_hand_landmarks: # check for exit gesture only when not showing the curator scene and hands are detected
-            exit_gesture = any(hand_tracking.close_window(landmark) for landmark in hand_tracking.results.multi_hand_landmarks) # detect if the exit gesture is made
-        if exit_gesture and not exit_gesture_detected:
-            # Start reverse morph effect to return to the curator scene
-            morph_images(images[img_idx], curator_img) # morph current background image to the curator scene
-            show_curator = True # set the curator flag TRUE, means we see the curator again
-            exit_gesture_detected = True # set the exit gesture flag TRUE, means the exit gesture has been handled
-            person_detected_duration = 0 # rest detection duration
-            person_timer.reset() # reset timer
-
-        if not exit_gesture: # if not exit gesture has been detected
-            exit_gesture_detected = False # reset the flag to FALSE
+        
 
         # Keyboard, handles the input
         key = cv2.waitKey(1)
