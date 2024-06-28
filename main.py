@@ -179,7 +179,7 @@ def main():
         # Check for hand gestures only when not showing the curator
         if not show_curator and hand_tracking.results.multi_hand_landmarks:
             # check each handlandmark for gesture
-            current_gesture = any(hand_tracking.check_handgesture(landmark) for landmark in hand_tracking.results.multi_hand_landmarks)
+            current_gesture = any(hand_tracking.check_handgesture(landmark, camera_img.shape[1]) for landmark in hand_tracking.results.multi_hand_landmarks)
 
         if current_gesture and not gesture_detected:
             # Change background only if a new gesture is detected and wasn't detected previously
