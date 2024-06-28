@@ -1,6 +1,7 @@
 import mediapipe as mp
 import cv2
 
+
 class HandLandmarks:
     def __init__(self):
         self.landmark= {}
@@ -13,13 +14,26 @@ class HandLandmarks:
 class HandTracking:
 
     def __init__(self):
-        self.mpHands = mp.solutions.hands
+        self.mpHands = mp.solutions.hands                       # Initialize MediaPipe Hands for hand detection and landmark extraction
         self.hands = self.mpHands.Hands()
-        self.mpDraw = mp.solutions.drawing_utils
-        self.previous_hand_position = None  # Variable for saving previous position
-        self.swipe_in_progress = False  # state for identifying swipe gesture
+        self.mpDraw = mp.solutions.drawing_utils    
+        # Initialize variables for gesture tracking
+        self.previous_hand_position = None                      # Variable for saving previous position
+        self.swipe_in_progress = False                          # state for identifying swipe gesture
     
     def find_hands(self, img, draw=True):
+        
+        """
+        Detects hands in the image and optionally draws landmarks and connections.
+        
+        Parameters:
+        - img: Input image in BGR format.
+        - draw: Boolean flag indicating whether to draw landmarks and connections on the image.
+        
+        Returns:
+        - img: Image with drawn landmarks and connections (if draw=True).
+        """
+        
         imgRGB = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         self.results = self.hands.process(imgRGB)
         #draw land handmarks
@@ -55,9 +69,11 @@ class HandTracking:
                 self.previous_hand_position = current_position
                 return False
 
+    # Function to close the artwork frame and get back to the curator 
     def close_window(self, handLms):
-        mp_hands = mp.solutions.hands
-        #pinch detection
+        mp_hands = mp.solutions.hands           # why here again?
+        
+        # pinch detection
         if len(handLms.landmark) > mp_hands.HandLandmark.MIDDLE_FINGER_TIP:
             middle_finger_tip = handLms.landmark[mp_hands.HandLandmark.MIDDLE_FINGER_TIP]
             thumb_tip = handLms.landmark[mp_hands.HandLandmark.THUMB_TIP]

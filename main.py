@@ -18,8 +18,8 @@ segmentor = SelfiSegmentation()
 width, height = 1280, 720
 windowName = "Mimicry"
 image_coords = (209,200,542,380)
-mirror_coords = (320, 125, 195, 385)  # x, y, width, height
-images = []
+mirror_coords = (320, 125, 195, 385)            # x, y, width, height
+images = []                                     # initialize empty list for images 
 
 curator_img = cv2.imread("./assets/curator.png", cv2.IMREAD_UNCHANGED)  # Loading picture with alpha channel
 curator_img = cv2.resize(curator_img, (width, height))  # First picture in same size as camera
@@ -31,31 +31,31 @@ vc.set(4, height)  # 4 stands for height
 # FUNCTIONS                                                                                                 #
 #############################################################################################################
 # Center crop the image
-def center_crop(img, dim):
-    width, height = img.shape[1], img.shape[0]
-    crop_width = min(dim[0], img.shape[1])
-    crop_height = min(dim[1], img.shape[0])
-    mid_x, mid_y = width // 2, height // 2
+def center_crop(img, dim):                          # dim: tuple(width, height)
+    width, height = img.shape[1], img.shape[0]      # 1=width, 2 = height
+    crop_width = min(dim[0], img.shape[1])          # ensure that crop size does not exceed image size
+    crop_height = min(dim[1], img.shape[0])         # ensure that crop size does not exceed image size
+    mid_x, mid_y = width // 2, height // 2          # calculate center
     return img[mid_y - crop_height // 2: mid_y + crop_height // 2, mid_x - crop_width // 2: mid_x + crop_width // 2]
 
 # Read images from folder
 def read_images(folder="images"):
-    path = folder
-    for filename in os.listdir(path):
-        img = cv2.imread(f"{path}/{filename}")
-        if img is not None:
-            crop_bg = center_crop(img, (width, height))
-            resized_img = cv2.resize(crop_bg, (width, height))
-            images.append(resized_img)
-    if not images:
+    path = folder                                       # set path to folder 
+    for filename in os.listdir(path):                   # iterate over all files in folder
+        img = cv2.imread(f"{path}/{filename}")          # read image with OpenCV
+        if img is not None:                             # check if image is read successfully
+            crop_bg = center_crop(img, (width, height)) # crop images to right dimensions(same of camera)
+            resized_img = cv2.resize(crop_bg, (width, height)) #resize image
+            images.append(resized_img)                  # add image to list
+    if not images:                                      # check if images were processed, else print error message
         print("No images found in image folder")
 
 # Apply perspective transformation
 def apply_perspective_transform(img):
-    pts1 = np.float32([[0, 0], [0, img.shape[0]], [img.shape[1], img.shape[0]], [img.shape[1], 0]])
-    pts2 = np.float32([[0, 0], [0, 384], [194, 368], [186, 39]])  # Transform points
-    M = cv2.getPerspectiveTransform(pts1, pts2)
-    return cv2.warpPerspective(img, M, (195, 385))
+    pts1 = np.float32([[0, 0], [0, img.shape[0]], [img.shape[1], img.shape[0]], [img.shape[1], 0]]) # Define source points (corners of the original image)
+    pts2 = np.float32([[0, 0], [0, 384], [194, 368], [186, 39]])  # Define destinations points (corner points in the transformed image)
+    M = cv2.getPerspectiveTransform(pts1, pts2)     # compute the perspective transform matrix
+    return cv2.warpPerspective(img, M, (195, 385))  # Apply perspective transform to the image
 
 # Function to create morph effect between two images
 def morph_images(img1, img2, steps=60):
@@ -137,31 +137,36 @@ def preprocess_image(img, target_width, target_height):
 #############################################################################################################
 
 def main():
-    read_images()
-    if not images:
+    read_images()                                           # read images from folder
+    if not images:                                          # else error message    
         print("No images available. Exiting program.")
         return
-    hand_tracking = HandTracking()
-    gesture_detected = False
-    exit_gesture_detected = False
-    change_detected = False
-    person_detector = PersonDetector()      
-    filter = Filter()                                                   # Filter object 
+    
+    # Handtracking related 
+    hand_tracking = HandTracking()                          # Handtracking Object
+    gesture_detected = False                                # Flag for gesture detection
+    exit_gesture_detected = False                           # Flag for gesture detection
+    change_detected = False                                 # Flag for gesture detection
+    person_detector = PersonDetector()                      # Person detecting object
+    
+    # Person detecting related 
+    person_timer = Timer()                                  # Timer Object
+    person_detected_duration = 0                            # initial timer for person detection
+    no_person_detected_duartion = 0                         # initial timer for no person detection
 
-    person_timer = Timer()
-    person_detected_duration = 0
-    no_person_detected_duartion = 0
+    show_curator = True                                     # Show curator flag
+    
+    # Filter related 
+    filter = Filter()                                       # Filter object 
+    img_idx = 0                                             # Index of the images in the folder, needed to apply filters on it
 
-    show_curator = True
-    img_idx = 0
-
-    while True:
-        success, camera_img = vc.read()
+    while True:                                             # as long as camera is open:
+        success, camera_img = vc.read()                     # open default camera, else error message
         if not success:
             print("Failed to read camera")
             break
 
-        # Flip the camera image
+        # Flip the camera image horizontally
         camera_img = cv2.flip(camera_img, 1)
 
         # Preprocess camera image
@@ -173,6 +178,7 @@ def main():
 
         # Check for hand gestures only when not showing the curator
         if not show_curator and hand_tracking.results.multi_hand_landmarks:
+            # check each handlandmark for gesture
             current_gesture = any(hand_tracking.check_handgesture(landmark) for landmark in hand_tracking.results.multi_hand_landmarks)
 
         if current_gesture and not gesture_detected:
@@ -219,23 +225,23 @@ def main():
             alpha_mask_resized = cv2.resize(alpha_mask, (camera_img_resized.shape[1], camera_img_resized.shape[0]))
 
             # Merge camera_img_resized and alpha_mask_resized into a single BGRA image
-            camera_img_resized = cv2.merge((camera_img_resized[:,:,0], camera_img_resized[:,:,1], camera_img_resized[:,:,2], alpha_mask_resized))
+            camera_img_resized = cv2.merge((camera_img_resized[:,:,0], camera_img_resized[:,:,1], camera_img_resized[:,:,2], alpha_mask_resized)) # combine rgb channels with alpha mask 
 
             # Create distance transformation
-            dist_transform = cv2.distanceTransform(alpha_mask_resized, cv2.DIST_L2, 5)
+            dist_transform = cv2.distanceTransform(alpha_mask_resized, cv2.DIST_L2, 5)  # calculate the distance to the nearest zero pixel  
             gradient = cv2.normalize(dist_transform, None, 0, 1.0, cv2.NORM_MINMAX)
 
-            # Invert gradient
-            gradient = 1 - gradient
+            # Invert gradient, invert normalized distance transform for gradient effect
+            gradient = 1 - gradient     
 
-            # Create black-to-transparent gradient
-            gradient = (gradient * 25).astype(np.uint8)
-            gradient = cv2.merge((gradient, gradient, gradient, gradient))
+            # scale gradient to create black to transparent gradient 
+            gradient = (gradient * 25).astype(np.uint8)                     # scale for visibility
+            gradient = cv2.merge((gradient, gradient, gradient, gradient))  # merge to create alpha channel gradient 
 
             # Apply gradient to camera_img_resized
             alpha_gradient = gradient[:, :, 3]
-            alpha_gradient = cv2.cvtColor(alpha_gradient, cv2.COLOR_GRAY2BGRA)
-            alpha_gradient[:, :, 3] = gradient[:, :, 3]
+            alpha_gradient = cv2.cvtColor(alpha_gradient, cv2.COLOR_GRAY2BGRA) # convert to 4-channel grayscale 
+            alpha_gradient[:, :, 3] = gradient[:, :, 3] # set the alpha channel 
 
             # Combine camera_img_resized and alpha_gradient using alpha compositing
             camera_img_resized = cv2.addWeighted(camera_img_resized, 1, alpha_gradient, -1, 0)
@@ -244,17 +250,17 @@ def main():
             roi = curator_copy[mirror_coords[1]: mirror_coords[1] + mirror_coords[3], mirror_coords[0]: mirror_coords[0] + mirror_coords[2]]
 
             # Ensure the mask dimensions match the ROI dimensions
-            mask = cv2.resize(cv2.bitwise_not(camera_img_resized[:, :, 3]), (roi.shape[1], roi.shape[0]))
-            roi_bg = cv2.bitwise_and(roi, roi, mask)
-            roi_fg_resized = cv2.resize(camera_img_resized, (roi.shape[1], roi.shape[0]))
-            roi_fg = cv2.bitwise_and(roi_fg_resized, roi_fg_resized, mask=roi_fg_resized[:, :, 3])
+            mask = cv2.resize(cv2.bitwise_not(camera_img_resized[:, :, 3]), (roi.shape[1], roi.shape[0])) #resize mask to match ROI 
+            roi_bg = cv2.bitwise_and(roi, roi, mask) # create background region by applying mask 
+            roi_fg_resized = cv2.resize(camera_img_resized, (roi.shape[1], roi.shape[0])) # resize transformed img to match roi 
+            roi_fg = cv2.bitwise_and(roi_fg_resized, roi_fg_resized, mask=roi_fg_resized[:, :, 3]) # create foreground region
 
             # Add the masked foreground and background images
-            dst = cv2.add(roi_bg, roi_fg)
-            curator_copy[mirror_coords[1]: mirror_coords[1] + mirror_coords[3], mirror_coords[0]: mirror_coords[0] + mirror_coords[2]] = dst
+            dst = cv2.add(roi_bg, roi_fg) # blend background and foreground regions 
+            curator_copy[mirror_coords[1]: mirror_coords[1] + mirror_coords[3], mirror_coords[0]: mirror_coords[0] + mirror_coords[2]] = dst # place blended imgae into the background
             
-            display_image = curator_copy
-
+            display_image = curator_copy # image to be displayed 
+ 
 
         ###############################################################################################
         # if the curator scene is not shown, means we see the segmented human in front of the art
@@ -312,62 +318,62 @@ def main():
         cv2.setWindowProperty(windowName, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
         cv2.imshow(windowName, display_image)
 
-        # Switching to Background Changer by being in frame for 5 seconds
-        if show_curator:
-            if person_detector.detect_person(camera_img):
-                if person_detected_duration == 0:
-                    person_timer.start()
-                person_detected_duration = person_timer.elapsed_time()
-                if person_detected_duration >= 5:
-                    # Start morph effect
-                    morph_images(curator_img, images[img_idx])
-                    show_curator = False
-                    person_detected_duration = 0
-                    person_timer.reset()
-            else:
-                person_detected_duration = 0
-                person_timer.reset()
-        else:
-            if person_detector.detect_person(camera_img):
-                person_detected_duration = 0
-                person_timer.reset()
+        # Switch the background if a person is detected in the frame for 5 seconds 
+        if show_curator:                                    # check if curator is shown currently 
+            if person_detector.detect_person(camera_img):   # detect if person is in the camera image 
+                if person_detected_duration == 0:           # check if detection timer has not started
+                    person_timer.start()                    # start timer
+                person_detected_duration = person_timer.elapsed_time() # update the duration for which the person has been detected
+                if person_detected_duration >= 5: # check if person has been detected for at least five seconds
+                    # Start morph effect to switch scene
+                    morph_images(curator_img, images[img_idx]) # morph curator with current background
+                    show_curator = False # set curator flag to false, means we dont see the curator anymore
+                    person_detected_duration = 0 # reset detection duration
+                    person_timer.reset() # reset the timer
+            else: # if not person is detected
+                person_detected_duration = 0 # reset detection duration
+                person_timer.reset() # reset timer
+        else: # if not showing the curator
+            if person_detector.detect_person(camera_img):# detect if a person is in the camera image
+                person_detected_duration = 0 # reset detection duration
+                person_timer.reset() # reset timer
 
         # Closing with gesture
-        exit_gesture = False
-        if not show_curator and hand_tracking.results.multi_hand_landmarks:
-            exit_gesture = any(hand_tracking.close_window(landmark) for landmark in hand_tracking.results.multi_hand_landmarks)
+        exit_gesture = False # initialize exit gesture flag
+        if not show_curator and hand_tracking.results. multi_hand_landmarks: # check for exit gesture only when not showing the curator scene and hands are detected
+            exit_gesture = any(hand_tracking.close_window(landmark) for landmark in hand_tracking.results.multi_hand_landmarks) # detect if the exit gesture is made
         if exit_gesture and not exit_gesture_detected:
-            # Start reverse morph effect
-            morph_images(images[img_idx], curator_img)
-            show_curator = True
-            exit_gesture_detected = True
-            person_detected_duration = 0
-            person_timer.reset()
+            # Start reverse morph effect to return to the curator scene
+            morph_images(images[img_idx], curator_img) # morph current background image to the curator scene
+            show_curator = True # set the curator flag TRUE, means we see the curator again
+            exit_gesture_detected = True # set the exit gesture flag TRUE, means the exit gesture has been handled
+            person_detected_duration = 0 # rest detection duration
+            person_timer.reset() # reset timer
 
-        if not exit_gesture:
-            exit_gesture_detected = False
+        if not exit_gesture: # if not exit gesture has been detected
+            exit_gesture_detected = False # reset the flag to FALSE
 
-        # Keyboard
+        # Keyboard, handles the input
         key = cv2.waitKey(1)
-        # Close window with esc key
+        # Close window with esc key (= 27 in ASCII code)
         if key == 27:
-            break
+            break # exit loop, close the window
         # Switching between images with key press 's'
         if key == ord('s'):
-            show_curator = not show_curator
+            show_curator = not show_curator # toggle show curator flag
         # Switching between images with key press 'a' for previous image and 'd' for next image
         if key == ord('a') and not show_curator:
-            img_idx = (img_idx - 1) % len(images)
+            img_idx = (img_idx - 1) % len(images) # decrement image index to show the previous image, wrapping around if necessary 
         elif key == ord('d') and not show_curator:
-            img_idx = (img_idx + 1) % len(images)
+            img_idx = (img_idx + 1) % len(images)# decrement image index to show the next image, wrapping around if necessary 
         # Close window with clicking on 'x'
-        if cv2.getWindowProperty(windowName, cv2.WND_PROP_VISIBLE) < 1:
-            break
+        if cv2.getWindowProperty(windowName, cv2.WND_PROP_VISIBLE) < 1: # check if window is no longer visible (for example the x button is pressed)
+            break # exit loop and close the window
 
     # clean up
-    vc.release()
-    cv2.destroyAllWindows()
+    vc.release()            # release camera resource
+    cv2.destroyAllWindows() # close all OpenCV windows
 
 # MAIN CALL
 if __name__ == "__main__":
-    main()
+    main() # call main function = runs the program
