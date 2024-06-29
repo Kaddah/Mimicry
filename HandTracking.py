@@ -4,31 +4,31 @@ import time
 
 class HandLandmarks:
     def __init__(self):
-        self.landmarks = {}
+        self.landmarks = {} # Initialize an empty dictionary to store landmarks
 
     @staticmethod
     def update_landmarks(landmarks):
-        HandLandmarks.landmarks = landmarks
+        HandLandmarks.landmarks = landmarks  # Static method to update the landmarks in the class
 
 
 class HandTracking:
     def __init__(self):
-        self.mpHands = mp.solutions.hands
-        self.hands = self.mpHands.Hands()
-        self.mpDraw = mp.solutions.drawing_utils
-        self.previous_hand_position = None  # Variable for saving previous position
-        self.swipe_in_progress = False  # state for identifying swipe gesture
+        self.mpHands = mp.solutions.hands # mediapipe Hands module for hand tracking
+        self.hands = self.mpHands.Hands()  # Creating a hands object for detecting hands
+        self.mpDraw = mp.solutions.drawing_utils # mediapipe drawing utilities for rendering landmarks
+        self.previous_hand_position = None  # Variable for saving previous position of the hand
+        self.swipe_in_progress = False  # State variable for identifying if a swipe gesture is in progress
         self.min_swipe_distance = 0.1  # Minimum distance (as a fraction of the image width) for swipe detection
         self.last_gesture_time = 0  # Track the time of the last gesture
 
     def find_hands(self, img, draw=True):
-        imgRGB = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        self.results = self.hands.process(imgRGB)
+        imgRGB = cv2.cvtColor(img, cv2.COLOR_BGR2RGB) # Convert the BGR image to RGB
+        self.results = self.hands.process(imgRGB) # Process the image to detect hands using mediapipe
         # Draw hand landmarks
         if self.results.multi_hand_landmarks and draw:
             for handLms in self.results.multi_hand_landmarks:
                 self.mpDraw.draw_landmarks(img, handLms, self.mpHands.HAND_CONNECTIONS)
-        return img
+        return img  # Return the image with drawn landmarks
 
     # Checking for swipe gesture
     def check_handgesture(self, handLms, img_width):
@@ -41,9 +41,10 @@ class HandTracking:
 
                 min_movement_in_pixels = self.min_swipe_distance * img_width
 
+                # Check if horizontal movement meets swipe criteria
                 if abs(horizontal_movement * img_width) > min_movement_in_pixels and abs(horizontal_movement) > abs(vertical_movement):
                     if horizontal_movement > 0 and not self.swipe_in_progress:
-                        # hand swiping from right to left
+                        # hand swiping from left to right
                         self.previous_hand_position = current_position
                         self.swipe_in_progress = True  # Start of swipe movement detected
                         self.last_gesture_time = time.time()  # Record the time of the gesture
@@ -61,14 +62,14 @@ class HandTracking:
                 return False
 
     def close_window(self, handLms):
-        mp_hands = mp.solutions.hands
+        mp_hands = mp.solutions.hands # mediapipe Hands module
         # Pinch detection
         if len(handLms.landmark) > mp_hands.HandLandmark.MIDDLE_FINGER_TIP:
             middle_finger_tip = handLms.landmark[mp_hands.HandLandmark.MIDDLE_FINGER_TIP]
             thumb_tip = handLms.landmark[mp_hands.HandLandmark.THUMB_TIP]
             distance = ((middle_finger_tip.x - thumb_tip.x) ** 2 + (middle_finger_tip.y - thumb_tip.y) ** 2) ** 0.5
             if distance < 0.03:
-                return True
+                return True #Return True if pinch distance is less than threshold
 
 
 
