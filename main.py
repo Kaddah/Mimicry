@@ -229,6 +229,16 @@ def main():
             if person_detector.detect_person(camera_img):# detect if a person is in the camera image
                 person_detected_duration = 0 # reset detection duration
                 person_timer.reset() # reset timer
+                no_person_detected_duartion = 0 # set no detection duration to 0
+            else: # if no person is detected in the camera image
+                if no_person_detected_duartion == 0: # check if no detection timer has started
+                    person_timer.start() # start timer
+                no_person_detected_duartion = person_timer.elapsed_time() # set do detection duration to started timer
+                if no_person_detected_duartion >= 5: # check if no person was detected during the last 5 seconds
+                    morph_images(images[img_idx], curator_img) # morph current background image to the curator scene
+                    show_curator = True # set curator flag to true to show the curator
+                    no_person_detected_duartion = 0 # reset no detection duration to 0 
+                    person_timer.reset() # reset timer
 
         # Closing with gesture
         exit_gesture = False # initialize exit gesture flag
