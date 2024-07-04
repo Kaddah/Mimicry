@@ -8,6 +8,10 @@ from HandTracking import HandLandmarks
 from PersonDetector import PersonDetector
 from Timer import Timer
 from Filter import Filter
+import ctypes 
+
+user32 = ctypes.WinDLL('user32', use_last_error=True)
+user32.ShowCursor(False)
 
 #############################################################################################################
 # Global variables                                                                                          #
@@ -256,10 +260,6 @@ def main():
             exit_gesture_detected = False # reset the flag to FALSE
 
         if show_curator:
-            # Resize camera_img_resized to match image_coords dimensions
-            camera_img_resized = cv2.resize(camera_img_resized, (image_coords[2], image_coords[3]))
-            # Crop camera_img_resized according to your logic (e.g., camera_img_resized[:, 179:542-175])
-            camera_img_resized = camera_img_resized[:, 179:542-175]
             # Convert to BGRA format
             camera_img_resized = cv2.cvtColor(camera_img_resized, cv2.COLOR_BGR2BGRA)
 

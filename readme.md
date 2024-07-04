@@ -13,8 +13,40 @@ Der Zuschauer soll sich in den Werken bekannter Künstler wiederfinden.<br />
 >Direkt aus dem Pinsel des Künstlers entstanden.
 
 ## Installationsanleitung
-Verwendete Bibliotheken sind in der 'requirements.txt' hinterlegt.<br />
-Diese kann über folgenden Befehl ausgeführt und installiert werden: <br /><br />
-``pip install -r requirements.txt``<br /><br />
->python version muss zwischen 3.8 und 3.11 liegen<br />
->auf mac läuft mediapipe auf einer niedrigeren Version als 0.10 (zb. 0.9)
+
+Die verwendeten Bibliotheken sind in der Datei 'requirements.txt' hinterlegt. 
+
+Diese kann über den folgenden Befehl installiert werden:
+
+
+```bash
+pip install -r requirements.txt
+```
+
+>Die Python-Version muss zwischen 3.8 und 3.11 liegen. <br>
+>Auf macOS läuft mediapipe auf einer niedrigeren Version als 0.10 (z.B. 0.9).
+
+## Programm bauen
+
+PyInstaller wird benötigt und kann mit pip installiert werden:
+
+```bash
+pip install pyinstaller
+```
+
+Unter Windows kann die .exe-Datei dann mit folgendem Kommando gebaut werden:
+
+```bash
+python -m PyInstaller main.py
+``` 
+
+Anschließend müssen einige Dateien manuell in das Bauverzeichnis kopiert werden.
+
+Es werden die Module von mediapipe benötigt. Mit dem folgenden Befehl kann der Pfad der mediapipe-Bibliothek angezeigt werden:
+
+```bash 
+python -m pip show mediapipe
+```
+
+Im mediapipe-Ordner muss der modules-Ordner kopiert und im dist-Ordner unter main/_internal/mediapipe abgelegt werden. 
+Weiterhin werden die Ordner `images` und `assets` benötigt. Diese gehören ebenfalls in den Ordner dist/main.
